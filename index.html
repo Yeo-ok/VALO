@@ -20,10 +20,15 @@
     .active { display:block; }
     .team { border:1px solid #444; padding:15px; margin:15px 0; border-radius:5px; }
     button {
-      margin:5px; padding:8px 12px; border:none; border-radius:4px;
-      background:#ff4655; color:#fff; cursor:pointer;
+      margin:5px; padding:6px 10px; border:none; border-radius:4px;
+      background:#ff4655; color:#fff; cursor:pointer; font-size:14px;
     }
     button:hover { background:#cc3744; }
+
+    .delete-btn {
+      background:#444; color:#eee; margin-left:8px;
+    }
+    .delete-btn:hover { background:#222; }
 
     /* Floating label input */
     .input-group { position:relative; margin:10px 0; display:inline-block; }
@@ -43,7 +48,7 @@
       top:-8px; left:8px; font-size:12px; color:#ff4655; background:#121212; padding:0 4px;
     }
     ul { list-style:none; padding:0; }
-    li { margin:5px 0; }
+    li { margin:5px 0; display:flex; align-items:center; }
     a { color:#4eaaff; cursor:pointer; text-decoration:none; }
     a:hover { text-decoration:underline; }
   </style>
@@ -112,19 +117,19 @@
   </div>
 
   <!-- 🔥 Firebase compat SDK -->
-  <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
 
   <script>
     // ====== 🔧 여기에 본인 Firebase 프로젝트 설정을 넣으세요 ======
     const firebaseConfig = {
-      apiKey: "🔥YOUR_FIREBASE_API_KEY🔥",
-      authDomain: "🔥YOUR_PROJECT.firebaseapp.com🔥",
-      projectId: "🔥YOUR_PROJECT_ID🔥",
-      storageBucket: "🔥YOUR_PROJECT.appspot.com🔥",
-      messagingSenderId: "🔥YOUR_SENDER_ID🔥",
-      appId: "🔥YOUR_APP_ID🔥"
-    };
+  apiKey: "AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",
+  authDomain: "valo-cf536.firebaseapp.com",
+  projectId: "valo-cf536",
+  storageBucket: "valo-cf536.firebasestorage.app",
+  messagingSenderId: "463328045633",
+  appId: "1:463328045633:web:7785fd381903d8cee874c0"
+};
     // ================================================
 
     firebase.initializeApp(firebaseConfig);
@@ -182,10 +187,21 @@
       alert("유저 등록 완료!");
     }
 
+    async function deleteUser(riotid){
+      if(!confirm(`${riotid} 유저를 삭제하시겠습니까?`)) return;
+      await db.collection("users").doc(riotid).delete();
+      await loadUsers();
+      alert("유저 삭제 완료!");
+    }
+
     function renderRegisteredUsers(){
       let html="";
       users.forEach(u=>{
-        html+=`<li>${u.name} (${u.riotid})</li>`;
+        html+=`
+          <li>
+            ${u.name} (${u.riotid})
+            <button class="delete-btn" onclick="deleteUser('${u.riotid}')">❌ 삭제</button>
+          </li>`;
       });
       document.getElementById("registeredUsers").innerHTML=html;
     }
@@ -285,11 +301,12 @@
       document.getElementById("userDetail").innerHTML=html;
     }
 
-    // 🔧 전역 등록 (onclick에서 호출 가능)
+    // 🔧 전역 등록
     window.showTab = showTab;
     window.saveMatch = saveMatch;
     window.registerUser = registerUser;
     window.showUser = showUser;
+    window.deleteUser = deleteUser;
 
     // 초기 로드
     loadUsers();
