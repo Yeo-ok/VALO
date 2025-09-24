@@ -46,8 +46,23 @@
     li { margin:5px 0; }
     a { color:#4eaaff; cursor:pointer; text-decoration:none; }
     a:hover { text-decoration:underline; }
-
     .player-row { display:flex; gap:8px; margin:8px 0; flex-wrap:wrap; }
+
+    /* 모달 */
+    .modal {
+      display:none;
+      position:fixed;
+      top:0; left:0; right:0; bottom:0;
+      background:rgba(0,0,0,0.6);
+      justify-content:center;
+      align-items:center;
+    }
+    .modal-content {
+      background:#1e1e1e;
+      padding:20px;
+      border-radius:8px;
+      text-align:center;
+    }
   </style>
 </head>
 <body>
@@ -113,13 +128,21 @@
     </div>
   </div>
 
+  <!-- 모달 -->
+  <div id="deleteModal" class="modal">
+    <div class="modal-content">
+      <p>정말 삭제하시겠습니까?</p>
+      <button onclick="confirmDelete()">네, 삭제합니다</button>
+      <button onclick="closeModal()">취소</button>
+    </div>
+  </div>
+
   <!-- 🔥 Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, setDoc } 
+    import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc } 
       from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    // ====== 🔧 Firebase 설정 (본인 값으로 교체) ======
     const firebaseConfig = {
       apiKey: "AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",
       authDomain: "valo-cf536.firebaseapp.com",
@@ -128,13 +151,13 @@
       messagingSenderId: "463328045633",
       appId: "1:463328045633:web:7785fd381903d8cee874c0"
     };
-    // ================================================
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
     let users = [];
     let matches = [];
+    let deleteTarget = null; // 삭제할 유저 riotid
 
     async function loadUsers(){
       users=[];
@@ -154,7 +177,6 @@
       });
     }
 
-    // 유저 입력칸 생성
     function createPlayerInputs(teamId) {
       let html = "";
       for (let i=0; i<5; i++) {
@@ -189,7 +211,6 @@
       document.getElementById(teamId).innerHTML = html;
     }
 
-    // 유저 등록
     async function registerUser(){
       const name=document.getElementById("regName").value.trim();
       const riotid=document.getElementById("regRiotId").value.trim();
@@ -209,7 +230,6 @@
       document.getElementById("registeredUsers").innerHTML=html;
     }
 
-    // 경기 저장
     async function saveMatch() {
       const map = document.getElementById("map")?.value || "";
       const score = document.getElementById("score")?.value || "";
@@ -244,14 +264,12 @@
       alert("저장 완료!");
     }
 
-    // 탭 전환
     function showTab(tabId) {
       document.querySelectorAll(".tab").forEach(div => div.classList.remove("active"));
       document.getElementById(tabId).classList.add("active");
       if(tabId==="usersTab") renderUsers();
     }
 
-    // 유저 관리 탭
     function renderUsers() {
       let userMap = {};
       users.forEach(u=>{
@@ -290,36 +308,95 @@
         document.getElementById("userDetail").innerHTML=`<h3>${user.name} (${riotid})</h3>기록 없음`;
         return;
       }
+
       let totalKills=0,totalDeaths=0,totalAssists=0,wins=0,losses=0;
-      let mapStats={};
+      let mapStats={}, opponentScores=0, games=0;
+      let sameTeam={}, againstTeam={};
+
       userMatches.forEach(um=>{
         const {m,team,player}=um;
         totalKills+=player.kills; totalDeaths+=player.deaths; totalAssists+=player.assists;
         const win=(m.winner===team); if(win) wins++; else losses++;
         if(!mapStats[m.map]) mapStats[m.map]={wins:0,losses:0};
         if(win) mapStats[m.map].wins++; else mapStats[m.map].losses++;
+
+        const otherTeam = (team==="team1"?"team2":"team1");
+        let oppAvg = m[otherTeam].reduce((sum,p)=>sum+p.score,0)/m[otherTeam].length;
+        opponentScores+=oppAvg; games++;
+
+        // 같은 팀
+        m[team].forEach(pl=>{
+          if(pl.riotid===riotid) return;
+          if(!sameTeam[pl.riotid]) sameTeam[pl.riotid]={name:pl.name,wins:0,losses:0};
+          if(win) sameTeam[pl.riotid].wins++; else sameTeam[pl.riotid].losses++;
+        });
+        // 상대 팀
+        m[otherTeam].forEach(pl=>{
+          if(!againstTeam[pl.riotid]) againstTeam[pl.riotid]={name:pl.name,wins:0,losses:0};
+          if(win) againstTeam[pl.riotid].wins++; else againstTeam[pl.riotid].losses++;
+        });
       });
+
       let kd=(totalDeaths===0)?"∞":(totalKills/totalDeaths).toFixed(2);
       let wr=((wins/(wins+losses))*100).toFixed(1);
+      let oppAvgScore=(games===0?0:(opponentScores/games).toFixed(1));
+
       let html=`<h3>${user.name} (${riotid})</h3>
       전체 승률: ${wr}% (${wins}승 ${losses}패)<br>
       전체 킬:${totalKills} / 데스:${totalDeaths} / 어시:${totalAssists} / K/D:${kd}<br>
+      상대 평균 점수: ${oppAvgScore}<br>
       <h4>맵별 승률</h4><ul>`;
       Object.entries(mapStats).forEach(([map,st])=>{
         let mwr=((st.wins/(st.wins+st.losses))*100).toFixed(1);
         html+=`<li>${map}: ${mwr}% (${st.wins}승 ${st.losses}패)</li>`;
       });
       html+="</ul>";
+
+      html+="<h4>같은 팀 승률</h4><ul>";
+      Object.entries(sameTeam).forEach(([id,st])=>{
+        let wr=((st.wins/(st.wins+st.losses))*100).toFixed(1);
+        html+=`<li>${st.name}: ${wr}% (${st.wins}승 ${st.losses}패)</li>`;
+      });
+      html+="</ul>";
+
+      html+="<h4>상대 팀 승률</h4><ul>";
+      Object.entries(againstTeam).forEach(([id,st])=>{
+        let wr=((st.wins/(st.wins+st.losses))*100).toFixed(1);
+        html+=`<li>${st.name}: ${wr}% (${st.wins}승 ${st.losses}패)</li>`;
+      });
+      html+="</ul>";
+
+      html+=`<button onclick="openModal('${riotid}')">❌ 유저 삭제</button>`;
       document.getElementById("userDetail").innerHTML=html;
     }
 
-    // 전역 등록 (onclick에서 사용 가능하게)
+    // 모달 제어
+    function openModal(riotid){
+      deleteTarget = riotid;
+      document.getElementById("deleteModal").style.display="flex";
+    }
+    function closeModal(){
+      deleteTarget = null;
+      document.getElementById("deleteModal").style.display="none";
+    }
+    async function confirmDelete(){
+      if(deleteTarget){
+        await deleteDoc(doc(db,"users",deleteTarget));
+        alert("삭제 완료!");
+        closeModal();
+        await loadUsers();
+        document.getElementById("userDetail").innerHTML="";
+      }
+    }
+
     window.showTab = showTab;
     window.saveMatch = saveMatch;
     window.registerUser = registerUser;
     window.showUser = showUser;
+    window.openModal = openModal;
+    window.closeModal = closeModal;
+    window.confirmDelete = confirmDelete;
 
-    // 초기 로드
     loadUsers();
     loadMatches();
   </script>
