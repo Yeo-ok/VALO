@@ -121,13 +121,13 @@
 
     // ====== 🔧 Firebase 설정 (본인 값으로 교체) ======
     const firebaseConfig = {
-  apiKey: "AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",
-  authDomain: "valo-cf536.firebaseapp.com",
-  projectId: "valo-cf536",
-  storageBucket: "valo-cf536.firebasestorage.app",
-  messagingSenderId: "463328045633",
-  appId: "1:463328045633:web:7785fd381903d8cee874c0"
-};
+      apiKey: "AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",
+      authDomain: "valo-cf536.firebaseapp.com",
+      projectId: "valo-cf536",
+      storageBucket: "valo-cf536.appspot.com",
+      messagingSenderId: "463328045633",
+      appId: "1:463328045633:web:7785fd381903d8cee874c0"
+    };
     // ================================================
 
     const app = initializeApp(firebaseConfig);
@@ -313,10 +313,15 @@
       document.getElementById("userDetail").innerHTML=html;
     }
 
+    // 전역 등록 (onclick에서 사용 가능하게)
+    window.showTab = showTab;
+    window.saveMatch = saveMatch;
+    window.registerUser = registerUser;
+    window.showUser = showUser;
+
     // 초기 로드
     loadUsers();
     loadMatches();
   </script>
 </body>
 </html>
-
