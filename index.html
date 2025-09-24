@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>발로란트 내전 관리</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background:#121212;
+      color:#eee;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      min-height:100vh;
+      padding:30px;
+    }
+    .container { width:1000px; }
+    h1 { color:#ff4655; text-align:center; }
+    .tab { display:none; }
+    .active { display:block; }
+    .team { border:1px solid #444; padding:15px; margin:15px 0; border-radius:5px; }
+    button {
+      margin:5px; padding:8px 12px; border:none; border-radius:4px;
+      background:#ff4655; color:#fff; cursor:pointer;
+    }
+    button:hover { background:#cc3744; }
+
+    /* Floating label input */
+    .input-group { position:relative; margin:10px 0; display:inline-block; }
+    .input-group input, .input-group select {
+      width:200px; padding:10px;
+      background:#1e1e1e; border:1px solid #555; border-radius:4px;
+      color:#eee; outline:none;
+    }
+    .input-group label {
+      position:absolute; top:50%; left:10px; transform:translateY(-50%);
+      color:#aaa; pointer-events:none; transition:0.2s;
+    }
+    .input-group input:focus + label,
+    .input-group input:not(:placeholder-shown) + label,
+    .input-group select:focus + label,
+    .input-group select:not([value=""]) + label {
+      top:-8px; left:8px; font-size:12px; color:#ff4655; background:#121212; padding:0 4px;
+    }
+    ul { list-style:none; padding:0; }
+    li { margin:5px 0; }
+    a { color:#4eaaff; cursor:pointer; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>발로란트 내전 관리</h1>
+    <button onclick="showTab('inputTab')">⚔️ 내전 입력</button>
+    <button onclick="showTab('usersTab')">👤 유저 관리</button>
+    <button onclick="showTab('registerTab')">➕ 유저 등록</button>
+
+    <!-- 내전 입력 탭 -->
+    <div id="inputTab" class="tab active">
+      <h2>내전 정보 입력</h2>
+      <div class="input-group">
+        <input id="map" type="text" placeholder=" " />
+        <label for="map">맵</label>
+      </div>
+      <div class="input-group">
+        <input id="score" type="text" placeholder=" " />
+        <label for="score">스코어 (예: 13-11)</label>
+      </div>
+      <div class="input-group">
+        <select id="winner">
+          <option value=""> </option>
+          <option value="team1">팀1</option>
+          <option value="team2">팀2</option>
+        </select>
+        <label for="winner">승리 팀</label>
+      </div>
+
+      <div class="team">
+        <h3>팀 1</h3>
+        <div id="team1"></div>
+      </div>
+      <div class="team">
+        <h3>팀 2</h3>
+        <div id="team2"></div>
+      </div>
+
+      <button onclick="saveMatch()">저장</button>
+    </div>
+
+    <!-- 유저 관리 탭 -->
+    <div id="usersTab" class="tab">
+      <h2>유저 관리</h2>
+      <div id="userList"></div>
+      <div id="userDetail"></div>
+    </div>
+
+    <!-- 유저 등록 탭 -->
+    <div id="registerTab" class="tab">
+      <h2>유저 등록</h2>
+      <div class="input-group">
+        <input id="regName" type="text" placeholder=" " />
+        <label for="regName">이름</label>
+      </div>
+      <div class="input-group">
+        <input id="regRiotId" type="text" placeholder="닉네임#태그" />
+        <label for="regRiotId">Riot ID</label>
+      </div>
+      <button onclick="registerUser()">등록</button>
+      <h3>등록된 유저</h3>
+      <ul id="registeredUsers"></ul>
+    </div>
+  </div>
+
+  <!-- 🔥 Firebase SDK -->
+  <script type="module">
+    // ====== 🔧 여기에 본인 Firebase 프로젝트 설정을 넣으세요 ======
+    // Firebase Console → 프로젝트 설정 → SDK 설정과 구성 → Web App 복사
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, getDoc, setDoc } 
+      from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "🔥YOUR_FIREBASE_API_KEY🔥",
+      authDomain: "🔥YOUR_PROJECT.firebaseapp.com🔥",
+      projectId: "🔥YOUR_PROJECT_ID🔥",
+      storageBucket: "🔥YOUR_PROJECT.appspot.com🔥",
+      messagingSenderId: "🔥YOUR_SENDER_ID🔥",
+      appId: "🔥YOUR_APP_ID🔥"
+    };
+    // ================================================
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 유저/매치 데이터 캐싱
+    let users = [];
+    let matches = [];
+
+    async function loadUsers(){
+      users=[];
+      const snapshot = await getDocs(collection(db,"users"));
+      snapshot.forEach(docSnap=>{
+        users.push(docSnap.data());
+      });
+      renderRegisteredUsers();
+      createPlayerInputs("team1");
+      createPlayerInputs("team2");
+    }
+    async function loadMatches(){
+      matches=[];
+      const snapshot = await getDocs(collection(db,"matches"));
+      snapshot.forEach(docSnap=>{
+        matches.push(docSnap.data());
+      });
+    }
+
+    // 유저 입력칸 생성
+    function createPlayerInputs(teamId) {
+      let html = "";
+      for (let i=0; i<5; i++) {
+        html += `
+          <div style="margin:10px 0;">
+            <select class="${teamId}-user">
+              <option value="">유저 선택</option>
+              ${users.map(u => `<option value="${u.riotid}">${u.name} (${u.riotid})</option>`).join("")}
+            </select>
+            <input type="number" class="${teamId}-score" placeholder="평균 점수" style="width:100px">
+            <input type="number" class="${teamId}-kills" placeholder="킬" style="width:60px">
+            <input type="number" class="${teamId}-deaths" placeholder="데스" style="width:60px">
+            <input type="number" class="${teamId}-assists" placeholder="어시" style="width:60px">
+          </div>
+        `;
+      }
+      document.getElementById(teamId).innerHTML = html;
+    }
+
+    // 유저 등록
+    async function registerUser(){
+      const name=document.getElementById("regName").value.trim();
+      const riotid=document.getElementById("regRiotId").value.trim();
+      if(!name||!riotid) return alert("이름과 Riot ID를 입력하세요");
+      await setDoc(doc(db,"users",riotid),{name,riotid});
+      await loadUsers();
+      document.getElementById("regName").value="";
+      document.getElementById("regRiotId").value="";
+      alert("유저 등록 완료!");
+    }
+
+    function renderRegisteredUsers(){
+      let html="";
+      users.forEach(u=>{
+        html+=`<li>${u.name} (${u.riotid})</li>`;
+      });
+      document.getElementById("registeredUsers").innerHTML=html;
+    }
+
+    // 경기 저장
+    async function saveMatch() {
+      const map = document.getElementById("map").value;
+      const score = document.getElementById("score").value;
+      const winner = document.getElementById("winner").value;
+
+      function collectTeam(teamId) {
+        let players = [];
+        for (let i=0; i<5; i++) {
+          const riotid = document.getElementsByClassName(`${teamId}-user`)[i].value;
+          const user = users.find(u=>u.riotid===riotid) || {};
+          players.push({
+            name: user.name || "",
+            riotid: riotid,
+            score: parseInt(document.getElementsByClassName(`${teamId}-score`)[i].value||0),
+            kills: parseInt(document.getElementsByClassName(`${teamId}-kills`)[i].value||0),
+            deaths: parseInt(document.getElementsByClassName(`${teamId}-deaths`)[i].value||0),
+            assists: parseInt(document.getElementsByClassName(`${teamId}-assists`)[i].value||0)
+          });
+        }
+        return players;
+      }
+
+      const match = {map, score, winner, team1: collectTeam("team1"), team2: collectTeam("team2")};
+      await addDoc(collection(db,"matches"),match);
+      await loadMatches();
+      alert("저장 완료!");
+    }
+
+    // 탭 전환
+    function showTab(tabId) {
+      document.querySelectorAll(".tab").forEach(div => div.classList.remove("active"));
+      document.getElementById(tabId).classList.add("active");
+      if(tabId==="usersTab") renderUsers();
+    }
+
+    // 유저 관리 탭
+    function renderUsers() {
+      let userMap = {};
+      users.forEach(u=>{
+        if (!userMap[u.riotid]) {
+          userMap[u.riotid] = { name:u.name, riotid:u.riotid, matches:[] };
+        }
+      });
+      matches.forEach(m=>{
+        ["team1","team2"].forEach(t=>{
+          m[t].forEach(p=>{
+            if(!p.riotid) return;
+            if(!userMap[p.riotid]) userMap[p.riotid]={name:p.name,riotid:p.riotid,matches:[]};
+            userMap[p.riotid].matches.push({match:m,team:t,player:p});
+          });
+        });
+      });
+      let html = "<h3>유저 목록</h3><ul>";
+      Object.values(userMap).forEach(u=>{
+        html+=`<li><a onclick="showUser('${u.riotid}')">${u.name} (${u.riotid})</a></li>`;
+      });
+      html+="</ul>";
+      document.getElementById("userList").innerHTML=html;
+    }
+
+    function showUser(riotid){
+      const userMatches=[];
+      matches.forEach(m=>{
+        ["team1","team2"].forEach(t=>{
+          m[t].forEach(p=>{
+            if(p.riotid===riotid) userMatches.push({m,team:t,player:p});
+          });
+        });
+      });
+      const user=users.find(u=>u.riotid===riotid)||{name:"",riotid};
+      if(userMatches.length===0){
+        document.getElementById("userDetail").innerHTML=`<h3>${user.name} (${riotid})</h3>기록 없음`;
+        return;
+      }
+      let totalKills=0,totalDeaths=0,totalAssists=0,wins=0,losses=0;
+      let mapStats={};
+      userMatches.forEach(um=>{
+        const {m,team,player}=um;
+        totalKills+=player.kills; totalDeaths+=player.deaths; totalAssists+=player.assists;
+        const win=(m.winner===team); if(win) wins++; else losses++;
+        if(!mapStats[m.map]) mapStats[m.map]={wins:0,losses:0};
+        if(win) mapStats[m.map].wins++; else mapStats[m.map].losses++;
+      });
+      let kd=(totalDeaths===0)?"∞":(totalKills/totalDeaths).toFixed(2);
+      let wr=((wins/(wins+losses))*100).toFixed(1);
+      let html=`<h3>${user.name} (${riotid})</h3>
+      전체 승률: ${wr}% (${wins}승 ${losses}패)<br>
+      전체 킬:${totalKills} / 데스:${totalDeaths} / 어시:${totalAssists} / K/D:${kd}<br>
+      <h4>맵별 승률</h4><ul>`;
+      Object.entries(mapStats).forEach(([map,st])=>{
+        let mwr=((st.wins/(st.wins+st.losses))*100).toFixed(1);
+        html+=`<li>${map}: ${mwr}% (${st.wins}승 ${st.losses}패)</li>`;
+      });
+      html+="</ul>";
+      document.getElementById("userDetail").innerHTML=html;
+    }
+
+    // 초기 로드
+    loadUsers();
+    loadMatches();
+  </script>
+</body>
+</html>
