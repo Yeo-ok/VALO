@@ -1,148 +1,127 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>발로란트 내전 관리</title>
+  <meta charset="utf-8" />
+  <title>발로란트 내전 플랫폼</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background:#121212;
-      color:#eee;
-      display:flex;
-      justify-content:center;
-      align-items:flex-start;
-      min-height:100vh;
-      padding:30px;
+    :root{
+      --bg:#0f1113; --card:#151618; --accent:#ff4655; --muted:#9aa3ad; --text:#eee;
     }
-    .container { width:1000px; }
-    h1 { color:#ff4655; text-align:center; }
-    .tab { display:none; }
-    .active { display:block; }
-    .team { border:1px solid #444; padding:15px; margin:15px 0; border-radius:5px; }
-    button {
-      margin:5px; padding:8px 12px; border:none; border-radius:4px;
-      background:#ff4655; color:#fff; cursor:pointer;
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:Inter, Arial, sans-serif;
+      background:linear-gradient(180deg,#0b0c0d 0%, #0f1113 100%); color:var(--text);
+      -webkit-font-smoothing:antialiased; padding:24px;
     }
-    button:hover { background:#cc3744; }
-
-    /* Floating label input */
-    .input-group { position:relative; margin:10px 0; display:inline-block; }
-    .input-group input, .input-group select {
-      width:150px; padding:10px;
-      background:#1e1e1e; border:1px solid #555; border-radius:4px;
-      color:#eee; outline:none;
-    }
-    .input-group label {
-      position:absolute; top:50%; left:10px; transform:translateY(-50%);
-      color:#aaa; pointer-events:none; transition:0.2s;
-    }
-    .input-group input:focus + label,
-    .input-group input:not(:placeholder-shown) + label,
-    .input-group select:focus + label,
-    .input-group select:not([value=""]) + label {
-      top:-8px; left:8px; font-size:12px; color:#ff4655; background:#121212; padding:0 4px;
-    }
-    ul { list-style:none; padding:0; }
-    li { margin:5px 0; }
-    a { color:#4eaaff; cursor:pointer; text-decoration:none; }
-    a:hover { text-decoration:underline; }
-    .player-row { display:flex; gap:8px; margin:8px 0; flex-wrap:wrap; }
-
-    /* 모달 */
-    .modal {
-      display:none;
-      position:fixed;
-      top:0; left:0; right:0; bottom:0;
-      background:rgba(0,0,0,0.6);
-      justify-content:center;
-      align-items:center;
-    }
-    .modal-content {
-      background:#1e1e1e;
-      padding:20px;
-      border-radius:8px;
-      text-align:center;
+    .wrap{max-width:1200px;margin:0 auto;}
+    header{display:flex;align-items:center;gap:16px; margin-bottom:18px;}
+    h1{margin:0;color:var(--accent);font-size:20px}
+    .top-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+    input, select, button {font-family:inherit}
+    .card{background:var(--card); padding:16px; border-radius:10px; border:1px solid rgba(255,255,255,0.04)}
+    .tabs{display:flex; gap:8px; margin:12px 0;}
+    .tab-btn{padding:8px 12px; border-radius:8px; background:transparent; border:1px solid transparent; color:var(--muted); cursor:pointer}
+    .tab-btn.active{background:rgba(255,255,255,0.03); color:var(--text); border-color:rgba(255,255,255,0.04)}
+    .hidden{display:none}
+    .cols{display:flex; gap:16px;}
+    .col{flex:1}
+    .input-group{margin:8px 0; position:relative}
+    .input{width:100%; padding:8px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.06); background:#0d0e10; color:var(--text)}
+    label.small{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    .player-row{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
+    .player-row .input{width:140px}
+    .player-row .input.small{width:80px}
+    .btn{padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:white;cursor:pointer}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06); color:var(--muted)}
+    .record{border:1px solid rgba(255,255,255,0.03); padding:10px; margin-bottom:10px; border-radius:8px; background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
+    .record .meta{display:flex;gap:12px;align-items:center;margin-bottom:6px}
+    .small-muted{color:var(--muted);font-size:13px}
+    .flex{display:flex;gap:8px;align-items:center}
+    .right{margin-left:auto}
+    .page-controls{display:flex;gap:8px;align-items:center;justify-content:center;margin:12px 0}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+    .tier-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:linear-gradient(90deg, rgba(255,255,255,0.02), transparent)}
+    .tier-icon{width:36px;height:20px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#111;font-size:12px}
+    /* generate simple color-coded tier icons */
+    .icon-iron{background:#8a8a8a;color:#fff}
+    .icon-bronze{background:#a76a31;color:#fff}
+    .icon-silver{background:#aeb8c0;color:#111}
+    .icon-gold{background:#f0c84a;color:#111}
+    .icon-platinum{background:#57d6c8;color:#111}
+    .icon-diamond{background:#5a8ee6;color:#fff}
+    .icon-immortal{background:#7a4bd6;color:#fff}
+    .icon-radiant{background:linear-gradient(90deg,#ffd36a,#ff6b8a);color:#111}
+    /* modal */
+    .modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999}
+    .modal .modal-box{width:420px;max-width:94%;background:var(--card);padding:18px;border-radius:10px;text-align:center}
+    .danger{background:#6d1414}
+    .small-note{font-size:13px;color:var(--muted)}
+    .footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+    a.link{color:#4eaaff}
+    /* responsive */
+    @media(max-width:900px){
+      .cols{flex-direction:column}
+      .player-row .input{width:48%}
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>발로란트 내전 관리</h1>
-    <button onclick="showTab('inputTab')">⚔️ 내전 입력</button>
-    <button onclick="showTab('usersTab')">👤 유저 관리</button>
-    <button onclick="showTab('registerTab')">➕ 유저 등록</button>
+  <div class="wrap">
+    <header>
+      <h1>발로란트 내전 플랫폼</h1>
+      <div class="top-right">
+        <div id="modeLabel" class="small-muted">모드: 로그인</div>
+      </div>
+    </header>
 
-    <!-- 내전 입력 탭 -->
-    <div id="inputTab" class="tab active">
-      <h2>내전 정보 입력</h2>
+    <!-- LOGIN -->
+    <div id="loginScreen" class="card">
+      <h2>모드 선택</h2>
       <div class="input-group">
-        <input id="map" type="text" placeholder=" " />
-        <label for="map">맵</label>
+        <label class="small">모드 입력 (관전 또는 관리자)</label>
+        <input id="modeInput" class="input" type="text" placeholder="예: 관전 또는 관리자" />
       </div>
-      <div class="input-group">
-        <input id="score" type="text" placeholder=" " />
-        <label for="score">스코어 (예: 13-11)</label>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="login()">입장</button>
+        <button class="btn ghost" onclick="autoSpectate()">관전으로 바로 입장</button>
       </div>
-      <div class="input-group">
-        <select id="winner">
-          <option value=""> </option>
-          <option value="team1">팀1</option>
-          <option value="team2">팀2</option>
-        </select>
-        <label for="winner">승리 팀</label>
-      </div>
-
-      <div class="team">
-        <h3>팀 1</h3>
-        <div id="team1"></div>
-      </div>
-      <div class="team">
-        <h3>팀 2</h3>
-        <div id="team2"></div>
-      </div>
-
-      <button onclick="saveMatch()">저장</button>
+      <p class="small-note" style="margin-top:10px">관리자 모드는 내전 입력 / 삭제 / 유저 삭제 등 관리자 권한을 제공합니다.</p>
     </div>
 
-    <!-- 유저 관리 탭 -->
-    <div id="usersTab" class="tab">
-      <h2>유저 관리</h2>
-      <div id="userList"></div>
-      <div id="userDetail"></div>
+    <!-- MAIN AREA (hidden until login) -->
+    <div id="mainArea" class="hidden">
+      <!-- top tabs (mode-specific tabs will be rendered dynamically) -->
+      <div id="globalTabs" class="tabs card" style="margin-top:12px;padding:8px"></div>
+
+      <!-- CONTENT -->
+      <div id="contentArea" style="margin-top:12px;"></div>
     </div>
 
-    <!-- 유저 등록 탭 -->
-    <div id="registerTab" class="tab">
-      <h2>유저 등록</h2>
-      <div class="input-group">
-        <input id="regName" type="text" placeholder=" " />
-        <label for="regName">이름</label>
+    <div class="footer">관리자 기능 사용 시 삭제는 Firebase에서 완전 삭제됩니다. 모든 통계는 저장된 matches 컬렉션을 기준으로 실시간 계산됩니다.</div>
+  </div>
+
+  <!-- MODAL (reused) -->
+  <div id="confirmModal" class="modal hidden">
+    <div class="modal-box card">
+      <h3 id="confirmTitle">확인</h3>
+      <p id="confirmMsg">진행하시겠습니까?</p>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+        <button class="btn danger" id="confirmOk">삭제</button>
+        <button class="btn ghost" onclick="closeModal()">취소</button>
       </div>
-      <div class="input-group">
-        <input id="regRiotId" type="text" placeholder="닉네임#태그" />
-        <label for="regRiotId">Riot ID</label>
-      </div>
-      <button onclick="registerUser()">등록</button>
-      <h3>등록된 유저</h3>
-      <ul id="registeredUsers"></ul>
     </div>
   </div>
 
-  <!-- 모달 -->
-  <div id="deleteModal" class="modal">
-    <div class="modal-content">
-      <p>정말 삭제하시겠습니까?</p>
-      <button onclick="confirmDelete()">네, 삭제합니다</button>
-      <button onclick="closeModal()">취소</button>
-    </div>
-  </div>
-
-  <!-- 🔥 Firebase SDK -->
+  <!-- FIREBASE SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc } 
-      from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import {
+      getFirestore, collection, doc, setDoc, addDoc, getDocs, deleteDoc, query, orderBy, serverTimestamp, getDoc
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
+    // ---------- Firebase 설정 (사용자 제공 설정 유지) ----------
     const firebaseConfig = {
       apiKey: "AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",
       authDomain: "valo-cf536.firebaseapp.com",
@@ -151,254 +130,624 @@
       messagingSenderId: "463328045633",
       appId: "1:463328045633:web:7785fd381903d8cee874c0"
     };
-
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let users = [];
-    let matches = [];
-    let deleteTarget = null; // 삭제할 유저 riotid
+    // ---------- 전역 상태 ----------
+    let MODE = null; // "관전" 또는 "관리자"
+    let users = []; // {name, riotid}
+    let matches = []; // {id?, map, score, winner, date, team1:[...], team2:[...]} (player: name, riotid, combat, kills,deaths,assists,hs%)
+    let currentMatchPage = 0;
+    const PAGE_SIZE = 5;
+
+    // ---------- 유틸: 날짜 포맷 ----------
+    function fmtDate(ts) {
+      if (!ts) return "";
+      const d = ts.toDate ? ts.toDate() : (new Date(ts));
+      return d.toLocaleString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit', hour:'2-digit', minute:'2-digit'});
+    }
+
+    // ---------- 로그인 ----------
+    function login(){
+      const val = (document.getElementById('modeInput').value || "").trim();
+      if(!val) return alert("관전 또는 관리자 를 입력하세요.");
+      if(val !== "관전" && val !== "관리자") return alert("정확히 '관전' 또는 '관리자'를 입력하세요.");
+      MODE = val;
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('mainArea').classList.remove('hidden');
+      document.getElementById('modeLabel').innerText = `모드: ${MODE}`;
+      awaitInitLoad();
+      renderTopTabs();
+      openDefaultTab();
+    }
+
+    // quick spectate
+    function autoSpectate(){ document.getElementById('modeInput').value = "관전"; login(); }
+
+    // ---------- 초기 데이터 로드 ----------
+    async function awaitInitLoad(){
+      await loadUsers();
+      await loadMatches();
+    }
 
     async function loadUsers(){
-      users=[];
-      const snapshot = await getDocs(collection(db,"users"));
-      snapshot.forEach(docSnap=>{
-        users.push(docSnap.data());
-      });
-      renderRegisteredUsers();
-      createPlayerInputs("team1");
-      createPlayerInputs("team2");
+      users = [];
+      const snap = await getDocs(collection(db,'users'));
+      snap.forEach(s => users.push(s.data()));
     }
+
     async function loadMatches(){
-      matches=[];
-      const snapshot = await getDocs(collection(db,"matches"));
-      snapshot.forEach(docSnap=>{
-        matches.push(docSnap.data());
+      matches = [];
+      const snap = await getDocs(query(collection(db,'matches'), orderBy('date','desc')));
+      snap.forEach(s=>{
+        const d = s.data();
+        d._id = s.id;
+        matches.push(d);
       });
     }
 
-    function createPlayerInputs(teamId) {
-      let html = "";
-      for (let i=0; i<5; i++) {
-        html += `
-          <div class="player-row">
-            <div class="input-group">
-              <select class="${teamId}-user" placeholder=" ">
-                <option value="">유저 선택</option>
-                ${users.map(u => `<option value="${u.riotid}">${u.name} (${u.riotid})</option>`).join("")}
-              </select>
-              <label>유저</label>
-            </div>
-            <div class="input-group">
-              <input type="number" class="${teamId}-score" placeholder=" " />
-              <label>평균 점수</label>
-            </div>
-            <div class="input-group">
-              <input type="number" class="${teamId}-kills" placeholder=" " />
-              <label>킬</label>
-            </div>
-            <div class="input-group">
-              <input type="number" class="${teamId}-deaths" placeholder=" " />
-              <label>데스</label>
-            </div>
-            <div class="input-group">
-              <input type="number" class="${teamId}-assists" placeholder=" " />
-              <label>어시</label>
-            </div>
-          </div>
-        `;
+    // ---------- 탭 렌더링 ----------
+    function renderTopTabs(){
+      const container = document.getElementById('globalTabs');
+      container.innerHTML = '';
+      if(MODE === "관전"){
+        container.appendChild(tabBtn('내전 기록', ()=>renderView('spectate_records')));
+        container.appendChild(tabBtn('전적 검색', ()=>renderView('spectate_search')));
+        container.appendChild(tabBtn('티어표', ()=>renderView('spectate_tiers')));
+      } else {
+        // 관리자
+        container.appendChild(tabBtn('내전 입력', ()=>renderView('admin_input')));
+        container.appendChild(tabBtn('내전 관리', ()=>renderView('admin_manage')));
+        container.appendChild(tabBtn('유저 관리', ()=>renderView('admin_users')));
+        // 공통 관전도 같이 보길 원하면 관전 탭 추가 가능 (요청 시 확장)
       }
-      document.getElementById(teamId).innerHTML = html;
     }
 
-    async function registerUser(){
-      const name=document.getElementById("regName").value.trim();
-      const riotid=document.getElementById("regRiotId").value.trim();
-      if(!name||!riotid) return alert("이름과 Riot ID를 입력하세요");
-      await setDoc(doc(db,"users",riotid),{name,riotid});
-      await loadUsers();
-      document.getElementById("regName").value="";
-      document.getElementById("regRiotId").value="";
-      alert("유저 등록 완료!");
+    function tabBtn(text, onClick){
+      const b = document.createElement('button');
+      b.className = 'tab-btn';
+      b.innerText = text;
+      b.onclick = ()=>{
+        document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        onClick();
+      };
+      return b;
     }
 
-    function renderRegisteredUsers(){
-      let html="";
-      users.forEach(u=>{
-        html+=`<li>${u.name} (${u.riotid})</li>`;
-      });
-      document.getElementById("registeredUsers").innerHTML=html;
+    function openDefaultTab(){
+      // activate first tab
+      const first = document.querySelector('.tab-btn');
+      if(first) first.click();
     }
 
-    async function saveMatch() {
-      const map = document.getElementById("map")?.value || "";
-      const score = document.getElementById("score")?.value || "";
-      const winner = document.getElementById("winner")?.value || "";
-
-      function collectTeam(teamId) {
-        let players = [];
-        const userEls = document.getElementsByClassName(`${teamId}-user`);
-        const scoreEls = document.getElementsByClassName(`${teamId}-score`);
-        const killEls = document.getElementsByClassName(`${teamId}-kills`);
-        const deathEls = document.getElementsByClassName(`${teamId}-deaths`);
-        const assistEls = document.getElementsByClassName(`${teamId}-assists`);
-
-        for (let i=0; i<userEls.length; i++) {
-          const riotid = userEls[i]?.value || "";
-          const user = users.find(u=>u.riotid===riotid) || {};
-          players.push({
-            name: user.name || "",
-            riotid,
-            score: parseInt(scoreEls[i]?.value || 0),
-            kills: parseInt(killEls[i]?.value || 0),
-            deaths: parseInt(deathEls[i]?.value || 0),
-            assists: parseInt(assistEls[i]?.value || 0)
-          });
-        }
-        return players;
+    // ---------- VIEW: 관전 - 내전 기록 (페이지네이션) ----------
+    function renderView(view){
+      const content = document.getElementById('contentArea');
+      content.innerHTML = '';
+      if(view === 'spectate_records'){
+        renderSpectateRecords(content);
+      } else if(view === 'spectate_search'){
+        renderSpectateSearch(content);
+      } else if(view === 'spectate_tiers'){
+        renderSpectateTiers(content);
+      } else if(view === 'admin_input'){
+        renderAdminInput(content);
+      } else if(view === 'admin_manage'){
+        renderAdminManage(content);
+      } else if(view === 'admin_users'){
+        renderAdminUsers(content);
       }
-
-      const match = {map, score, winner, team1: collectTeam("team1"), team2: collectTeam("team2")};
-      await addDoc(collection(db,"matches"),match);
-      await loadMatches();
-      alert("저장 완료!");
     }
 
-    function showTab(tabId) {
-      document.querySelectorAll(".tab").forEach(div => div.classList.remove("active"));
-      document.getElementById(tabId).classList.add("active");
-      if(tabId==="usersTab") renderUsers();
+    function renderSpectateRecords(container){
+      currentMatchPage = 0;
+      const box = document.createElement('div'); box.className='card';
+      box.innerHTML = `<h2>내전 기록</h2>
+        <div id="recordsList"></div>
+        <div class="page-controls"><button class="btn ghost" id="prevPage">&lt; 이전</button><div id="pageInfo" class="small-muted"></div><button class="btn ghost" id="nextPage">다음 &gt;</button></div>`;
+      container.appendChild(box);
+      document.getElementById('prevPage').onclick = ()=>{ if(currentMatchPage>0){ currentMatchPage--; updateRecordsList(); } };
+      document.getElementById('nextPage').onclick = ()=>{ if((currentMatchPage+1)*PAGE_SIZE < matches.length){ currentMatchPage++; updateRecordsList(); } };
+      updateRecordsList();
     }
 
-    function renderUsers() {
-      let userMap = {};
-      users.forEach(u=>{
-        if (!userMap[u.riotid]) {
-          userMap[u.riotid] = { name:u.name, riotid:u.riotid, matches:[] };
-        }
+    function updateRecordsList(){
+      const listDiv = document.getElementById('recordsList');
+      listDiv.innerHTML = '';
+      const start = currentMatchPage * PAGE_SIZE;
+      const page = matches.slice(start, start + PAGE_SIZE);
+      page.forEach(m => listDiv.appendChild(renderMatchRecord(m, false)));
+      document.getElementById('pageInfo').innerText = `페이지 ${currentMatchPage+1} / ${Math.max(1, Math.ceil(matches.length/PAGE_SIZE))}`;
+    }
+
+    function renderMatchRecord(m, showAdminControls){
+      const div = document.createElement('div'); div.className='record';
+      const dateStr = fmtDate(m.date) || '';
+      const meta = document.createElement('div'); meta.className='meta';
+      meta.innerHTML = `<div class="small-muted">${dateStr}</div><div class="small-muted">맵: ${m.map || '-'}</div><div class="small-muted">스코어: ${m.score || '-'}</div>`;
+      if(showAdminControls){
+        const rmBtn = document.createElement('button'); rmBtn.className='btn ghost right'; rmBtn.innerText='삭제';
+        rmBtn.onclick = ()=>confirmDeleteMatch(m._id);
+        meta.appendChild(rmBtn);
+      }
+      div.appendChild(meta);
+
+      // teams
+      const teams = ['team1','team2'];
+      teams.forEach(t=>{
+        const team = document.createElement('div');
+        team.innerHTML = `<div style="font-weight:600;margin-top:8px">${t==='team1'?'팀 1':'팀 2'} ${m.winner===t?'<span style="color:var(--accent)"> (승리)</span>':''}</div>`;
+        m[t].forEach(p=>{
+          const pr = document.createElement('div');
+          pr.style.display='flex'; pr.style.justifyContent='space-between'; pr.style.marginTop='6px';
+          pr.innerHTML = `<div><strong>${p.name || '-'}</strong> <span class="small-muted">(${p.riotid||''})</span></div>
+            <div class="small-muted">전투:${p.combat||0} / K:${p.kills||0} D:${p.deaths||0} A:${p.assists||0} HS:${p.hs || 0}%</div>`;
+          team.appendChild(pr);
+        });
+        div.appendChild(team);
       });
+
+      return div;
+    }
+
+    // ---------- VIEW: 관전 - 전적 검색 ----------
+    function renderSpectateSearch(container){
+      const box = document.createElement('div'); box.className='card';
+      box.innerHTML = `<h2>전적 검색</h2>
+        <div class="input-group"><label class="small">이름 또는 Riot ID</label><input id="searchInput" class="input" placeholder="닉네임 또는 닉네임#태그" /></div>
+        <div style="display:flex;gap:8px"><button class="btn" id="searchBtn">검색</button><button class="btn ghost" id="searchClear">초기화</button></div>
+        <div id="searchResult" style="margin-top:12px"></div>`;
+      container.appendChild(box);
+      document.getElementById('searchBtn').onclick = ()=>doSearch();
+      document.getElementById('searchClear').onclick = ()=>{ document.getElementById('searchInput').value=''; document.getElementById('searchResult').innerHTML=''; };
+    }
+
+    function doSearch(){
+      const q = (document.getElementById('searchInput').value||'').trim();
+      if(!q) return alert('이름 또는 Riot ID를 입력하세요');
+      const results = [];
+      // find matches containing this user
       matches.forEach(m=>{
-        ["team1","team2"].forEach(t=>{
+        ['team1','team2'].forEach(t=>{
           m[t].forEach(p=>{
-            if(!p.riotid) return;
-            if(!userMap[p.riotid]) userMap[p.riotid]={name:p.name,riotid:p.riotid,matches:[]};
-            userMap[p.riotid].matches.push({match:m,team:t,player:p});
+            if(!p) return;
+            if((p.name && p.name.includes(q)) || (p.riotid && p.riotid.includes(q))) {
+              results.push({m,team:t,player:p});
+            }
           });
         });
       });
-      let html = "<h3>유저 목록</h3><ul>";
-      Object.values(userMap).forEach(u=>{
-        html+=`<li><a onclick="showUser('${u.riotid}')">${u.name} (${u.riotid})</a></li>`;
-      });
-      html+="</ul>";
-      document.getElementById("userList").innerHTML=html;
+      renderSearchResult(q, results);
     }
 
-    function showUser(riotid){
-      const userMatches=[];
-      matches.forEach(m=>{
-        ["team1","team2"].forEach(t=>{
-          m[t].forEach(p=>{
-            if(p.riotid===riotid) userMatches.push({m,team:t,player:p});
-          });
-        });
-      });
-      const user=users.find(u=>u.riotid===riotid)||{name:"",riotid};
-      if(userMatches.length===0){
-        document.getElementById("userDetail").innerHTML=`<h3>${user.name} (${riotid})</h3>기록 없음`;
+    function renderSearchResult(q, results){
+      const out = document.getElementById('searchResult');
+      out.innerHTML = '';
+      if(results.length === 0){
+        out.innerHTML = `<div class="small-muted">검색결과 없음: ${q}</div>`;
         return;
       }
 
-      let totalKills=0,totalDeaths=0,totalAssists=0,wins=0,losses=0;
-      let mapStats={}, opponentScores=0, games=0;
-      let sameTeam={}, againstTeam={};
+      // compute stats
+      let totalKills=0, totalDeaths=0, totalAssists=0, totalCombat=0, totalHS=0, games=0, wins=0, losses=0;
+      let mapStats = {};
+      let mvpCount=0;
+      // order matches by date asc for streak calc
+      const userMatches = results.map(r=>({m:r.m, team:r.team, p:r.player})).sort((a,b)=> new Date(a.m.date.seconds*1000) - new Date(b.m.date.seconds*1000));
+      let currentStreak = 0, maxWinStreak=0, maxLoseStreak=0, lastWin=null;
+      let streak = 0;
+      userMatches.forEach(item=>{
+        const {m, team, p} = item;
+        totalKills += p.kills || 0;
+        totalDeaths += p.deaths || 0;
+        totalAssists += p.assists || 0;
+        totalCombat += p.combat || 0;
+        totalHS += (p.hs || 0);
+        games++;
+        const isWin = (m.winner === team);
+        if(isWin) wins++; else losses++;
+        // map stats
+        if(!mapStats[m.map]) mapStats[m.map] = {wins:0,losses:0};
+        if(isWin) mapStats[m.map].wins++; else mapStats[m.map].losses++;
+        // MVP? check highest combat in match
+        const allPlayers = [...m.team1, ...m.team2];
+        const top = allPlayers.reduce((best,pl)=> (pl.combat > (best.combat||-1) ? pl : best), {});
+        if(top.riotid === p.riotid) mvpCount++;
+      });
 
-      userMatches.forEach(um=>{
-        const {m,team,player}=um;
-        totalKills+=player.kills; totalDeaths+=player.deaths; totalAssists+=player.assists;
-        const win=(m.winner===team); if(win) wins++; else losses++;
-        if(!mapStats[m.map]) mapStats[m.map]={wins:0,losses:0};
-        if(win) mapStats[m.map].wins++; else mapStats[m.map].losses++;
+      // calculate streaks (using chronological order)
+      let s = 0; let lastResult = null;
+      userMatches.forEach(item=>{
+        const isWin = (item.m.winner === item.team);
+        if(lastResult === null || lastResult === isWin) { s = s + 1; }
+        else { s = 1; }
+        if(isWin){
+          maxWinStreak = Math.max(maxWinStreak, s);
+        } else {
+          maxLoseStreak = Math.max(maxLoseStreak, s);
+        }
+        lastResult = isWin;
+      });
+      // K/D/A and K/D
+      const kda = ((totalKills + totalAssists) / Math.max(1,totalDeaths)).toFixed(2);
+      const kd = (totalDeaths === 0 ? '∞' : (totalKills/totalDeaths).toFixed(2));
+      const avgCombat = (games === 0 ? 0 : (totalCombat / games).toFixed(1));
+      const avgHS = (games === 0 ? 0 : (totalHS / games).toFixed(1));
+      const winrate = ((wins / Math.max(1, games)) * 100).toFixed(1);
 
-        const otherTeam = (team==="team1"?"team2":"team1");
-        let oppAvg = m[otherTeam].reduce((sum,p)=>sum+p.score,0)/m[otherTeam].length;
-        opponentScores+=oppAvg; games++;
+      let summary = `<div class="card"><h3>${q}의 전적</h3>
+        <div class="small-muted">게임수: ${games} / 승: ${wins} / 패: ${losses} / 승률: ${winrate}%</div>
+        <div class="small-muted">킬:${totalKills} 데스:${totalDeaths} 어시:${totalAssists} / KDA:${kda} / K/D:${kd}</div>
+        <div class="small-muted">평균 전투점수: ${avgCombat} / 평균 헤드율: ${avgHS}% / MVP 횟수: ${mvpCount}</div>
+        <div class="small-muted">최대 연승: ${maxWinStreak} / 최대 연패: ${maxLoseStreak}</div>
+        <h4 style="margin-top:10px">맵별 통계</h4><ul>`;
+      Object.entries(mapStats).forEach(([mp,st])=>{
+        const mwr = ((st.wins/(st.wins+st.losses))*100).toFixed(1);
+        summary += `<li>${mp}: ${mwr}% (${st.wins}승 ${st.losses}패)</li>`;
+      });
+      summary += `</ul></div>`;
+      out.innerHTML = summary;
+    }
 
-        // 같은 팀
-        m[team].forEach(pl=>{
-          if(pl.riotid===riotid) return;
-          if(!sameTeam[pl.riotid]) sameTeam[pl.riotid]={name:pl.name,wins:0,losses:0};
-          if(win) sameTeam[pl.riotid].wins++; else sameTeam[pl.riotid].losses++;
+    // ---------- VIEW: 관전 - 티어표 ----------
+    function renderSpectateTiers(container){
+      // compute MMR for all users based on matches[]
+      computeAllStatsAndMMR(); // fills usersStats
+      const box = document.createElement('div'); box.className='card';
+      box.innerHTML = `<h2>티어표</h2><div id="tierTableWrap"></div>`;
+      container.appendChild(box);
+      updateTierTable();
+    }
+
+    let usersStats = {}; // riotid -> computed stats & mmr & tier
+
+    function computeAllStatsAndMMR(){
+      usersStats = {};
+      // initialize
+      users.forEach(u => {
+        usersStats[u.riotid] = {
+          name: u.name, riotid: u.riotid,
+          games:0, wins:0, losses:0, kills:0, deaths:0, assists:0, combatSum:0, hsSum:0, mvp:0, matches:[]
+        };
+      });
+
+      // incorporate matches
+      matches.forEach(m=>{
+        // determine MVP (highest combat)
+        const allPlayers = [...m.team1, ...m.team2].filter(Boolean);
+        const top = allPlayers.reduce((best,pl)=> (pl.combat > (best.combat||-1) ? pl : best), {});
+        // for each player
+        ['team1','team2'].forEach(t=>{
+          m[t].forEach(p=>{
+            if(!p || !p.riotid) return;
+            if(!usersStats[p.riotid]) usersStats[p.riotid] = {name:p.name, riotid:p.riotid, games:0,wins:0,losses:0,kills:0,deaths:0,assists:0,combatSum:0,hsSum:0,mvp:0,matches:[]};
+            const st = usersStats[p.riotid];
+            st.games++;
+            const isWin = (m.winner === t);
+            if(isWin) st.wins++; else st.losses++;
+            st.kills += p.kills || 0;
+            st.deaths += p.deaths || 0;
+            st.assists += p.assists || 0;
+            st.combatSum += p.combat || 0;
+            st.hsSum += (p.hs || 0);
+            if(top && top.riotid === p.riotid) st.mvp++;
+            st.matches.push({matchId:m._id, date:m.date, win:isWin, combat:p.combat || 0});
+          });
         });
-        // 상대 팀
-        m[otherTeam].forEach(pl=>{
-          if(!againstTeam[pl.riotid]) againstTeam[pl.riotid]={name:pl.name,wins:0,losses:0};
-          if(win) againstTeam[pl.riotid].wins++; else againstTeam[pl.riotid].losses++;
+      });
+
+      // compute derived metrics and MMR
+      Object.values(usersStats).forEach(st=>{
+        st.avgCombat = st.games ? (st.combatSum / st.games) : 0;
+        st.avgHS = st.games ? (st.hsSum / st.games) : 0;
+        st.winrate = st.games ? (st.wins / st.games) : 0;
+        st.kda = st.deaths ? ((st.kills + st.assists) / st.deaths) : (st.kills + st.assists);
+        st.kd = st.deaths ? (st.kills / st.deaths) : st.kills;
+        // streaks: compute current streak from most recent matches
+        st.matches.sort((a,b)=> new Date(b.date.seconds*1000) - new Date(a.date.seconds*1000));
+        let curStreak = 0;
+        if(st.matches.length>0){
+          const latestWin = st.matches[0].win;
+          for(let i=0;i<st.matches.length;i++){
+            if(st.matches[i].win === latestWin) curStreak++;
+            else break;
+          }
+        }
+        st.currentStreak = curStreak * (st.matches.length? (st.matches[0].win ? 1 : -1) : 0); // positive=win streak, negative=lose streak
+
+        // MVP factor
+        const mvpFactor = Math.min(10, st.mvp) * 0.5; // small boost per mvp
+
+        // base components (normalized approximations)
+        // combatSc: scale avgCombat into 0-1000 (assume typical combat ~200-300)
+        const combatSc = st.avgCombat;
+        // kd score scaled
+        const kdSc = Math.min(5, st.kd); // cap
+        // hs scaled
+        const hsSc = Math.min(100, st.avgHS);
+        // winrate scaled 0-100
+        const wrSc = st.winrate * 100;
+
+        // MMR weights tuned:
+        // combat: 40%, kd/kda: 20%, headshot: 15%, winrate: 15%, mvp:5%, streak bonus:5%
+        const w_combat = 0.40, w_kd = 0.20, w_hs = 0.15, w_wr = 0.15, w_mvp=0.05, w_streak=0.05;
+
+        // normalize factors into 0-100 scale roughly
+        const normalizedCombat = Math.min(100, (combatSc / 4)); // e.g. combat 400 -> 100
+        const normalizedKD = Math.min(100, (kdSc / 5) * 100);
+        const normalizedHS = hsSc; // already 0-100
+        const normalizedWR = wrSc; // 0-100
+        const normalizedMVP = Math.min(100, mvpFactor * 10); // small
+
+        // streak bonus: if current positive streak >=3 add bonus, >=5 big bonus (2-tier promotion)
+        let streakBonusPoints = 0;
+        if(st.currentStreak > 0){
+          if(st.currentStreak >= 5) streakBonusPoints = 15; // big bonus for hot streak
+          else if(st.currentStreak >= 3) streakBonusPoints = 6;
+        } else if(st.currentStreak < 0){
+          if(st.currentStreak <= -5) streakBonusPoints = -12;
+          else if(st.currentStreak <= -3) streakBonusPoints = -5;
+        }
+
+        const baseScore = (normalizedCombat*w_combat + normalizedKD*w_kd + normalizedHS*w_hs + normalizedWR*w_wr + normalizedMVP*w_mvp);
+        const mmrRaw = baseScore + streakBonusPoints;
+        // scale to final MMR (example scale: base 800..3200)
+        const mmr = Math.round(800 + mmrRaw * 20); // tune multiplier
+        st.mmr = mmr;
+
+        // determine tier from mmr
+        st.tier = mmrToTier(mmr);
+      });
+    }
+
+    function mmrToTier(mmr){
+      // thresholds (example, adjustable)
+      // 0-899 Iron, 900-1199 Bronze, 1200-1499 Silver, 1500-1799 Gold, 1800-2099 Platinum, 2100-2399 Diamond, 2400-2699 Immortal, 2700+ Radiant
+      if(mmr < 900) return {name:'아이언', key:'iron', icon:'icon-iron'};
+      if(mmr < 1200) return {name:'브론즈', key:'bronze', icon:'icon-bronze'};
+      if(mmr < 1500) return {name:'실버', key:'silver', icon:'icon-silver'};
+      if(mmr < 1800) return {name:'골드', key:'gold', icon:'icon-gold'};
+      if(mmr < 2100) return {name:'플래티넘', key:'platinum', icon:'icon-platinum'};
+      if(mmr < 2400) return {name:'다이아', key:'diamond', icon:'icon-diamond'};
+      if(mmr < 2700) return {name:'이모탈', key:'immortal', icon:'icon-immortal'};
+      return {name:'레이디언트', key:'radiant', icon:'icon-radiant'};
+    }
+
+    function updateTierTable(){
+      // ensure stats computed
+      computeAllStatsAndMMR();
+      const wrap = document.getElementById('tierTableWrap');
+      wrap.innerHTML = '';
+
+      // convert to array and sort by mmr desc
+      const arr = Object.values(usersStats).sort((a,b)=> b.mmr - a.mmr);
+      // render top summary
+      let topHtml = `<div style="display:flex;justify-content:space-between;align-items:center"><div class="small-muted">총 유저: ${arr.length}</div></div>
+        <table><thead><tr><th>순위</th><th>닉네임</th><th>티어</th><th>MMR</th><th>승률</th><th>평균전투</th><th>K/D/A</th><th>MVP</th></tr></thead><tbody>`;
+      arr.forEach((u,i)=>{
+        topHtml += `<tr>
+          <td>${i+1}</td>
+          <td><strong>${u.name||u.riotid}</strong><div class="small-muted">${u.riotid}</div></td>
+          <td><span class="tier-badge"><span class="tier-icon ${u.tier.icon}">${u.tier.name.split('')[0]}</span>${u.tier.name}</span></td>
+          <td>${u.mmr}</td>
+          <td>${(u.winrate*100).toFixed(1)}%</td>
+          <td>${u.avgCombat.toFixed(1)}</td>
+          <td>${u.kills}/${u.deaths}/${u.assists}</td>
+          <td>${u.mvp}</td>
+        </tr>`;
+      });
+      topHtml += `</tbody></table>`;
+      wrap.innerHTML = topHtml;
+    }
+
+    // ---------- VIEW: 관리자 - 내전 입력 ----------
+    function renderAdminInput(container){
+      const box = document.createElement('div'); box.className='card';
+      box.innerHTML = `<h2>내전 입력</h2>
+        <div class="cols">
+          <div class="col" id="leftCol">
+            <div class="input-group"><label class="small">맵</label><input id="in_map" class="input" /></div>
+            <div class="input-group"><label class="small">스코어 (예: 13-11)</label><input id="in_score" class="input" /></div>
+            <div class="input-group"><label class="small">승리팀</label>
+              <select id="in_winner" class="input"><option value="">선택</option><option value="team1">팀1</option><option value="team2">팀2</option></select></div>
+            <div class="input-group"><label class="small">날짜/시간 (비워두면 현재)</label><input id="in_date" class="input" placeholder="YYYY-MM-DD HH:mm 또는 비워두기"/></div>
+            <div class="input-group"><label class="small">설명/비고</label><input id="in_note" class="input" /></div>
+            <div style="margin-top:8px"><button class="btn" id="btnAddMatch">저장</button></div>
+          </div>
+          <div class="col" id="rightCol">
+            <div><strong>팀 1</strong></div>
+            <div id="team1Inputs"></div>
+            <div style="height:8px"></div>
+            <div><strong>팀 2</strong></div>
+            <div id="team2Inputs"></div>
+          </div>
+        </div>`;
+      container.appendChild(box);
+
+      // build player rows (5 per team)
+      createAdminPlayerInputs('team1Inputs','team1');
+      createAdminPlayerInputs('team2Inputs','team2');
+
+      document.getElementById('btnAddMatch').onclick = async ()=>{
+        await adminSaveMatch();
+      };
+    }
+
+    function createAdminPlayerInputs(containerId, teamKey){
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      for(let i=0;i<5;i++){
+        const row = document.createElement('div'); row.className='player-row';
+        // select user
+        const sel = document.createElement('select'); sel.className = 'input'; sel.style.width='220px';
+        sel.id = `${teamKey}_user_${i}`;
+        const opt0 = document.createElement('option'); opt0.value=''; opt0.innerText='유저 선택';
+        sel.appendChild(opt0);
+        users.forEach(u=> {
+          const o = document.createElement('option'); o.value=u.riotid; o.innerText = `${u.name} (${u.riotid})`; sel.appendChild(o);
         });
-      });
-
-      let kd=(totalDeaths===0)?"∞":(totalKills/totalDeaths).toFixed(2);
-      let wr=((wins/(wins+losses))*100).toFixed(1);
-      let oppAvgScore=(games===0?0:(opponentScores/games).toFixed(1));
-
-      let html=`<h3>${user.name} (${riotid})</h3>
-      전체 승률: ${wr}% (${wins}승 ${losses}패)<br>
-      전체 킬:${totalKills} / 데스:${totalDeaths} / 어시:${totalAssists} / K/D:${kd}<br>
-      상대 평균 점수: ${oppAvgScore}<br>
-      <h4>맵별 승률</h4><ul>`;
-      Object.entries(mapStats).forEach(([map,st])=>{
-        let mwr=((st.wins/(st.wins+st.losses))*100).toFixed(1);
-        html+=`<li>${map}: ${mwr}% (${st.wins}승 ${st.losses}패)</li>`;
-      });
-      html+="</ul>";
-
-      html+="<h4>같은 팀 승률</h4><ul>";
-      Object.entries(sameTeam).forEach(([id,st])=>{
-        let wr=((st.wins/(st.wins+st.losses))*100).toFixed(1);
-        html+=`<li>${st.name}: ${wr}% (${st.wins}승 ${st.losses}패)</li>`;
-      });
-      html+="</ul>";
-
-      html+="<h4>상대 팀 승률</h4><ul>";
-      Object.entries(againstTeam).forEach(([id,st])=>{
-        let wr=((st.wins/(st.wins+st.losses))*100).toFixed(1);
-        html+=`<li>${st.name}: ${wr}% (${st.wins}승 ${st.losses}패)</li>`;
-      });
-      html+="</ul>";
-
-      html+=`<button onclick="openModal('${riotid}')">❌ 유저 삭제</button>`;
-      document.getElementById("userDetail").innerHTML=html;
-    }
-
-    // 모달 제어
-    function openModal(riotid){
-      deleteTarget = riotid;
-      document.getElementById("deleteModal").style.display="flex";
-    }
-    function closeModal(){
-      deleteTarget = null;
-      document.getElementById("deleteModal").style.display="none";
-    }
-    async function confirmDelete(){
-      if(deleteTarget){
-        await deleteDoc(doc(db,"users",deleteTarget));
-        alert("삭제 완료!");
-        closeModal();
-        await loadUsers();
-        document.getElementById("userDetail").innerHTML="";
+        const inCombat = document.createElement('input'); inCombat.className='input small'; inCombat.id=`${teamKey}_combat_${i}`; inCombat.placeholder='전투점수';
+        const inKills = document.createElement('input'); inKills.className='input small'; inKills.id=`${teamKey}_kills_${i}`; inKills.placeholder='킬';
+        const inDeaths = document.createElement('input'); inDeaths.className='input small'; inDeaths.id=`${teamKey}_deaths_${i}`; inDeaths.placeholder='데스';
+        const inAssists = document.createElement('input'); inAssists.className='input small'; inAssists.id=`${teamKey}_assists_${i}`; inAssists.placeholder='어시';
+        const inHS = document.createElement('input'); inHS.className='input small'; inHS.id=`${teamKey}_hs_${i}`; inHS.placeholder='헤드율(%)';
+        row.appendChild(sel); row.appendChild(inCombat); row.appendChild(inKills); row.appendChild(inDeaths); row.appendChild(inAssists); row.appendChild(inHS);
+        container.appendChild(row);
       }
     }
 
-    window.showTab = showTab;
-    window.saveMatch = saveMatch;
-    window.registerUser = registerUser;
-    window.showUser = showUser;
-    window.openModal = openModal;
-    window.closeModal = closeModal;
-    window.confirmDelete = confirmDelete;
+    // Admin save match (collect inputs, add to firestore)
+    async function adminSaveMatch(){
+      const map = document.getElementById('in_map').value.trim();
+      const score = document.getElementById('in_score').value.trim();
+      const winner = document.getElementById('in_winner').value;
+      const note = document.getElementById('in_note').value.trim();
+      let dateVal = document.getElementById('in_date').value.trim();
+      let dateObj = dateVal ? new Date(dateVal) : new Date();
 
-    loadUsers();
-    loadMatches();
+      function collect(teamKey){
+        const arr = [];
+        for(let i=0;i<5;i++){
+          const riotid = document.getElementById(`${teamKey}_user_${i}`).value || "";
+          const user = users.find(u=>u.riotid===riotid) || {};
+          const combat = parseFloat(document.getElementById(`${teamKey}_combat_${i}`).value || 0);
+          const kills = parseInt(document.getElementById(`${teamKey}_kills_${i}`).value || 0);
+          const deaths = parseInt(document.getElementById(`${teamKey}_deaths_${i}`).value || 0);
+          const assists = parseInt(document.getElementById(`${teamKey}_assists_${i}`).value || 0);
+          const hs = parseFloat(document.getElementById(`${teamKey}_hs_${i}`).value || 0);
+          arr.push({
+            name: user.name || '',
+            riotid: riotid,
+            combat: combat,
+            kills: kills,
+            deaths: deaths,
+            assists: assists,
+            hs: hs
+          });
+        }
+        return arr;
+      }
+
+      const matchObj = {
+        map, score, winner, note,
+        team1: collect('team1'), team2: collect('team2'),
+        date: serverTimestamp()
+      };
+      await addDoc(collection(db,'matches'), matchObj);
+      await loadMatches();
+      alert('내전이 저장되었습니다.');
+      renderView('admin_input'); // refresh
+    }
+
+    // ---------- VIEW: 관리자 - 내전 관리 ----------
+    function renderAdminManage(container){
+      const box = document.createElement('div'); box.className='card';
+      box.innerHTML = `<h2>내전 관리</h2><div id="adminMatchesList"></div>`;
+      container.appendChild(box);
+      updateAdminMatchesList();
+    }
+
+    function updateAdminMatchesList(){
+      const out = document.getElementById('adminMatchesList');
+      out.innerHTML = '';
+      matches.forEach(m=>{
+        const row = renderMatchRecord(m, true);
+        out.appendChild(row);
+      });
+    }
+
+    // ---------- VIEW: 관리자 - 유저 관리 ----------
+    function renderAdminUsers(container){
+      const box = document.createElement('div'); box.className='card';
+      box.innerHTML = `<h2>유저 관리</h2>
+        <div style="display:flex;gap:8px"><div style="flex:1"><label class="small">이름</label><input id="regName" class="input"/></div>
+        <div style="flex:1"><label class="small">Riot ID (닉네임#태그)</label><input id="regRiot" class="input"/></div>
+        <div style="width:160px;align-self:end"><button class="btn" id="regBtn">등록</button></div></div>
+        <h3 style="margin-top:12px">등록된 유저</h3>
+        <div id="usersList"></div>`;
+      container.appendChild(box);
+      document.getElementById('regBtn').onclick = ()=>registerUserAdmin();
+      updateUsersList();
+    }
+
+    async function registerUserAdmin(){
+      const name = document.getElementById('regName').value.trim();
+      const riotid = document.getElementById('regRiot').value.trim();
+      if(!name || !riotid) return alert('이름과 Riot ID를 입력하세요');
+      await setDoc(doc(db,'users', riotid), {name, riotid});
+      await loadUsers();
+      alert('유저 등록 완료');
+      renderView('admin_users');
+    }
+
+    function updateUsersList(){
+      const wrap = document.getElementById('usersList');
+      wrap.innerHTML = '';
+      users.forEach(u=>{
+        const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.alignItems='center';
+        div.style.padding='6px 0';
+        div.innerHTML = `<div><strong>${u.name}</strong> <span class="small-muted">(${u.riotid})</span></div>`;
+        const btn = document.createElement('button'); btn.className='btn ghost'; btn.innerText='삭제';
+        btn.onclick = ()=>confirmDeleteUser(u.riotid);
+        div.appendChild(btn);
+        wrap.appendChild(div);
+      });
+    }
+
+    // ---------- 삭제 모달 처리 (공통으로 사용) ----------
+    let pendingDelete = null; // {type: 'match'|'user', id:...}
+    function confirmDeleteMatch(matchId){
+      pendingDelete = {type:'match', id:matchId};
+      document.getElementById('confirmTitle').innerText = '내전 삭제 확인';
+      document.getElementById('confirmMsg').innerText = '이 내전을 완전히 삭제하시겠습니까? (Firestore에서 영구 삭제됩니다)';
+      document.getElementById('confirmOk').innerText = '네, 삭제합니다';
+      document.getElementById('confirmOk').className = 'btn danger';
+      document.getElementById('confirmOk').onclick = async ()=>{
+        await deleteDoc(doc(db,'matches', pendingDelete.id));
+        closeModal();
+        await loadMatches();
+        // refresh views where needed
+        if(MODE === '관리자') renderView('admin_manage');
+        else renderView('spectate_records');
+      };
+      openModal();
+    }
+
+    function confirmDeleteUser(riotid){
+      pendingDelete = {type:'user', id:riotid};
+      document.getElementById('confirmTitle').innerText = '유저 삭제 확인';
+      document.getElementById('confirmMsg').innerText = `${riotid} 을(를) 삭제하시겠습니까? 이 작업은 복구되지 않습니다.`;
+      document.getElementById('confirmOk').innerText = '네, 삭제합니다';
+      document.getElementById('confirmOk').className = 'btn danger';
+      document.getElementById('confirmOk').onclick = async ()=>{
+        await deleteDoc(doc(db,'users', pendingDelete.id));
+        // Note: we do not automatically delete matches referencing this user; matches will still show blank name
+        closeModal();
+        await loadUsers();
+        if(MODE === '관리자') renderView('admin_users');
+        else renderView('spectate_records');
+      };
+      openModal();
+    }
+
+    function openModal(){
+      document.getElementById('confirmModal').classList.remove('hidden');
+      document.getElementById('confirmModal').style.display = 'flex';
+    }
+    function closeModal(){
+      document.getElementById('confirmModal').classList.add('hidden');
+      document.getElementById('confirmModal').style.display = 'none';
+      pendingDelete = null;
+    }
+
+    // ---------- 초기 호출을 위해 빈 구현 (login에서 사용) ----------
+    // Load data on script load so when user logs in it is quick.
+    (async ()=>{
+      // Preload minimal sets
+      await loadUsers();
+      await loadMatches();
+    })();
   </script>
 </body>
 </html>
