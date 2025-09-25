@@ -136,19 +136,65 @@
     // ---------- 전역 상태 ----------
     let MODE = null; // "관전" 또는 "관리자"
     let users = []; // {name, riotid}
-    let matches = []; // {id?, map, score, winner, date, team1:[...], team2:[...]} (player: name, riotid, combat, kills,deaths,assists,hs%)
+    let matches = []; // {id?, map, score, winner, date, team1:[...], team2:[...]}
     let currentMatchPage = 0;
     const PAGE_SIZE = 5;
 
-    // ---------- 유틸: 날짜 포맷 ----------
+    // ---------- 유틸: 타임스탬프/날짜 헬퍼 ----------
+    function tsToDate(ts){
+      if(!ts) return null;
+      // Firestore Timestamp has toDate() or toMillis()
+      if (typeof ts.toDate === 'function') return ts.toDate();
+      if (typeof ts.toMillis === 'function') return new Date(ts.toMillis());
+      if (ts.seconds) return new Date(ts.seconds * 1000);
+      return new Date(ts);
+    }
+    function tsToMillis(ts){
+      if(!ts) return 0;
+      if (typeof ts.toMillis === 'function') return ts.toMillis();
+      if (ts.seconds) return ts.seconds * 1000;
+      if (typeof ts === 'number') return ts;
+      return new Date(ts).getTime();
+    }
     function fmtDate(ts) {
-      if (!ts) return "";
-      const d = ts.toDate ? ts.toDate() : (new Date(ts));
+      const d = tsToDate(ts);
+      if(!d) return "";
       return d.toLocaleString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit', hour:'2-digit', minute:'2-digit'});
     }
 
-    // ---------- 로그인 ----------
-    function login(){
+    // ---------- 초기 데이터 로드 헬퍼 ----------
+    async function awaitInitLoad(){
+      await loadUsers();
+      await loadMatches();
+    }
+
+    // ---------- Firestore 로드 함수 ----------
+    async function loadUsers(){
+      users = [];
+      try{
+        const snap = await getDocs(collection(db,'users'));
+        snap.forEach(s => users.push(s.data()));
+      }catch(e){
+        console.error('loadUsers error', e);
+      }
+    }
+
+    async function loadMatches(){
+      matches = [];
+      try{
+        const snap = await getDocs(query(collection(db,'matches'), orderBy('date','desc')));
+        snap.forEach(s=>{
+          const d = s.data();
+          d._id = s.id;
+          matches.push(d);
+        });
+      }catch(e){
+        console.error('loadMatches error', e);
+      }
+    }
+
+    // ---------- 전역으로 노출: 로그인/모달 (module 환경에서는 window로 노출해야 inline onclick 동작) ----------
+    window.login = async function(){
       const val = (document.getElementById('modeInput').value || "").trim();
       if(!val) return alert("관전 또는 관리자 를 입력하세요.");
       if(val !== "관전" && val !== "관리자") return alert("정확히 '관전' 또는 '관리자'를 입력하세요.");
@@ -156,35 +202,21 @@
       document.getElementById('loginScreen').classList.add('hidden');
       document.getElementById('mainArea').classList.remove('hidden');
       document.getElementById('modeLabel').innerText = `모드: ${MODE}`;
-      awaitInitLoad();
+      // 초기 데이터 로드 (await)
+      await awaitInitLoad();
       renderTopTabs();
       openDefaultTab();
-    }
+    };
 
-    // quick spectate
-    function autoSpectate(){ document.getElementById('modeInput').value = "관전"; login(); }
+    window.autoSpectate = async function(){
+      document.getElementById('modeInput').value = "관전";
+      await window.login();
+    };
 
-    // ---------- 초기 데이터 로드 ----------
-    async function awaitInitLoad(){
-      await loadUsers();
-      await loadMatches();
-    }
-
-    async function loadUsers(){
-      users = [];
-      const snap = await getDocs(collection(db,'users'));
-      snap.forEach(s => users.push(s.data()));
-    }
-
-    async function loadMatches(){
-      matches = [];
-      const snap = await getDocs(query(collection(db,'matches'), orderBy('date','desc')));
-      snap.forEach(s=>{
-        const d = s.data();
-        d._id = s.id;
-        matches.push(d);
-      });
-    }
+    window.closeModal = function(){
+      document.getElementById('confirmModal').classList.add('hidden');
+      pendingDelete = null;
+    };
 
     // ---------- 탭 렌더링 ----------
     function renderTopTabs(){
@@ -195,11 +227,9 @@
         container.appendChild(tabBtn('전적 검색', ()=>renderView('spectate_search')));
         container.appendChild(tabBtn('티어표', ()=>renderView('spectate_tiers')));
       } else {
-        // 관리자
         container.appendChild(tabBtn('내전 입력', ()=>renderView('admin_input')));
         container.appendChild(tabBtn('내전 관리', ()=>renderView('admin_manage')));
         container.appendChild(tabBtn('유저 관리', ()=>renderView('admin_users')));
-        // 공통 관전도 같이 보길 원하면 관전 탭 추가 가능 (요청 시 확장)
       }
     }
 
@@ -216,12 +246,11 @@
     }
 
     function openDefaultTab(){
-      // activate first tab
       const first = document.querySelector('.tab-btn');
       if(first) first.click();
     }
 
-    // ---------- VIEW: 관전 - 내전 기록 (페이지네이션) ----------
+    // ---------- VIEW 로직 ----------
     function renderView(view){
       const content = document.getElementById('contentArea');
       content.innerHTML = '';
@@ -240,6 +269,7 @@
       }
     }
 
+    // ---------- 관전: 내전 기록 ----------
     function renderSpectateRecords(container){
       currentMatchPage = 0;
       const box = document.createElement('div'); box.className='card';
@@ -273,12 +303,11 @@
       }
       div.appendChild(meta);
 
-      // teams
       const teams = ['team1','team2'];
       teams.forEach(t=>{
         const team = document.createElement('div');
         team.innerHTML = `<div style="font-weight:600;margin-top:8px">${t==='team1'?'팀 1':'팀 2'} ${m.winner===t?'<span style="color:var(--accent)"> (승리)</span>':''}</div>`;
-        m[t].forEach(p=>{
+        (m[t]||[]).forEach(p=>{
           const pr = document.createElement('div');
           pr.style.display='flex'; pr.style.justifyContent='space-between'; pr.style.marginTop='6px';
           pr.innerHTML = `<div><strong>${p.name || '-'}</strong> <span class="small-muted">(${p.riotid||''})</span></div>
@@ -291,7 +320,7 @@
       return div;
     }
 
-    // ---------- VIEW: 관전 - 전적 검색 ----------
+    // ---------- 관전: 전적 검색 ----------
     function renderSpectateSearch(container){
       const box = document.createElement('div'); box.className='card';
       box.innerHTML = `<h2>전적 검색</h2>
@@ -307,10 +336,9 @@
       const q = (document.getElementById('searchInput').value||'').trim();
       if(!q) return alert('이름 또는 Riot ID를 입력하세요');
       const results = [];
-      // find matches containing this user
       matches.forEach(m=>{
         ['team1','team2'].forEach(t=>{
-          m[t].forEach(p=>{
+          (m[t]||[]).forEach(p=>{
             if(!p) return;
             if((p.name && p.name.includes(q)) || (p.riotid && p.riotid.includes(q))) {
               results.push({m,team:t,player:p});
@@ -333,10 +361,8 @@
       let totalKills=0, totalDeaths=0, totalAssists=0, totalCombat=0, totalHS=0, games=0, wins=0, losses=0;
       let mapStats = {};
       let mvpCount=0;
-      // order matches by date asc for streak calc
-      const userMatches = results.map(r=>({m:r.m, team:r.team, p:r.player})).sort((a,b)=> new Date(a.m.date.seconds*1000) - new Date(b.m.date.seconds*1000));
-      let currentStreak = 0, maxWinStreak=0, maxLoseStreak=0, lastWin=null;
-      let streak = 0;
+      const userMatches = results.map(r=>({m:r.m, team:r.team, p:r.player}))
+        .sort((a,b)=> tsToMillis(a.m.date) - tsToMillis(b.m.date)); // chronological
       userMatches.forEach(item=>{
         const {m, team, p} = item;
         totalKills += p.kills || 0;
@@ -347,29 +373,24 @@
         games++;
         const isWin = (m.winner === team);
         if(isWin) wins++; else losses++;
-        // map stats
         if(!mapStats[m.map]) mapStats[m.map] = {wins:0,losses:0};
         if(isWin) mapStats[m.map].wins++; else mapStats[m.map].losses++;
-        // MVP? check highest combat in match
-        const allPlayers = [...m.team1, ...m.team2];
-        const top = allPlayers.reduce((best,pl)=> (pl.combat > (best.combat||-1) ? pl : best), {});
-        if(top.riotid === p.riotid) mvpCount++;
+        const allPlayers = [...(m.team1||[]), ...(m.team2||[])];
+        const top = allPlayers.reduce((best,pl)=> (pl && (pl.combat || 0) > (best.combat||-1) ? pl : best), {});
+        if(top && top.riotid === p.riotid) mvpCount++;
       });
 
-      // calculate streaks (using chronological order)
-      let s = 0; let lastResult = null;
+      // streaks
+      let s = 0; let lastResult = null; let maxWinStreak = 0, maxLoseStreak = 0;
       userMatches.forEach(item=>{
         const isWin = (item.m.winner === item.team);
         if(lastResult === null || lastResult === isWin) { s = s + 1; }
         else { s = 1; }
-        if(isWin){
-          maxWinStreak = Math.max(maxWinStreak, s);
-        } else {
-          maxLoseStreak = Math.max(maxLoseStreak, s);
-        }
+        if(isWin) maxWinStreak = Math.max(maxWinStreak, s);
+        else maxLoseStreak = Math.max(maxLoseStreak, s);
         lastResult = isWin;
       });
-      // K/D/A and K/D
+
       const kda = ((totalKills + totalAssists) / Math.max(1,totalDeaths)).toFixed(2);
       const kd = (totalDeaths === 0 ? '∞' : (totalKills/totalDeaths).toFixed(2));
       const avgCombat = (games === 0 ? 0 : (totalCombat / games).toFixed(1));
@@ -383,28 +404,27 @@
         <div class="small-muted">최대 연승: ${maxWinStreak} / 최대 연패: ${maxLoseStreak}</div>
         <h4 style="margin-top:10px">맵별 통계</h4><ul>`;
       Object.entries(mapStats).forEach(([mp,st])=>{
-        const mwr = ((st.wins/(st.wins+st.losses))*100).toFixed(1);
-        summary += `<li>${mp}: ${mwr}% (${st.wins}승 ${st.losses}패)</li>`;
+        const total = st.wins + st.losses;
+        const mwr = total ? ((st.wins/total)*100).toFixed(1) : '0.0';
+        summary += `<li>${mp || '알수없음'}: ${mwr}% (${st.wins}승 ${st.losses}패)</li>`;
       });
       summary += `</ul></div>`;
       out.innerHTML = summary;
     }
 
-    // ---------- VIEW: 관전 - 티어표 ----------
+    // ---------- 관전: 티어표 ----------
     function renderSpectateTiers(container){
-      // compute MMR for all users based on matches[]
-      computeAllStatsAndMMR(); // fills usersStats
+      computeAllStatsAndMMR();
       const box = document.createElement('div'); box.className='card';
       box.innerHTML = `<h2>티어표</h2><div id="tierTableWrap"></div>`;
       container.appendChild(box);
       updateTierTable();
     }
 
-    let usersStats = {}; // riotid -> computed stats & mmr & tier
+    let usersStats = {};
 
     function computeAllStatsAndMMR(){
       usersStats = {};
-      // initialize
       users.forEach(u => {
         usersStats[u.riotid] = {
           name: u.name, riotid: u.riotid,
@@ -412,14 +432,11 @@
         };
       });
 
-      // incorporate matches
       matches.forEach(m=>{
-        // determine MVP (highest combat)
-        const allPlayers = [...m.team1, ...m.team2].filter(Boolean);
-        const top = allPlayers.reduce((best,pl)=> (pl.combat > (best.combat||-1) ? pl : best), {});
-        // for each player
+        const allPlayers = [...(m.team1||[]), ...(m.team2||[])].filter(Boolean);
+        const top = allPlayers.reduce((best,pl)=> (pl && (pl.combat || 0) > (best.combat||-1) ? pl : best), {});
         ['team1','team2'].forEach(t=>{
-          m[t].forEach(p=>{
+          (m[t]||[]).forEach(p=>{
             if(!p || !p.riotid) return;
             if(!usersStats[p.riotid]) usersStats[p.riotid] = {name:p.name, riotid:p.riotid, games:0,wins:0,losses:0,kills:0,deaths:0,assists:0,combatSum:0,hsSum:0,mvp:0,matches:[]};
             const st = usersStats[p.riotid];
@@ -437,15 +454,13 @@
         });
       });
 
-      // compute derived metrics and MMR
       Object.values(usersStats).forEach(st=>{
         st.avgCombat = st.games ? (st.combatSum / st.games) : 0;
         st.avgHS = st.games ? (st.hsSum / st.games) : 0;
         st.winrate = st.games ? (st.wins / st.games) : 0;
         st.kda = st.deaths ? ((st.kills + st.assists) / st.deaths) : (st.kills + st.assists);
         st.kd = st.deaths ? (st.kills / st.deaths) : st.kills;
-        // streaks: compute current streak from most recent matches
-        st.matches.sort((a,b)=> new Date(b.date.seconds*1000) - new Date(a.date.seconds*1000));
+        st.matches.sort((a,b)=> tsToMillis(b.date) - tsToMillis(a.date));
         let curStreak = 0;
         if(st.matches.length>0){
           const latestWin = st.matches[0].win;
@@ -454,36 +469,25 @@
             else break;
           }
         }
-        st.currentStreak = curStreak * (st.matches.length? (st.matches[0].win ? 1 : -1) : 0); // positive=win streak, negative=lose streak
+        st.currentStreak = curStreak * (st.matches.length? (st.matches[0].win ? 1 : -1) : 0);
 
-        // MVP factor
-        const mvpFactor = Math.min(10, st.mvp) * 0.5; // small boost per mvp
-
-        // base components (normalized approximations)
-        // combatSc: scale avgCombat into 0-1000 (assume typical combat ~200-300)
+        const mvpFactor = Math.min(10, st.mvp) * 0.5;
         const combatSc = st.avgCombat;
-        // kd score scaled
-        const kdSc = Math.min(5, st.kd); // cap
-        // hs scaled
+        const kdSc = Math.min(5, st.kd);
         const hsSc = Math.min(100, st.avgHS);
-        // winrate scaled 0-100
         const wrSc = st.winrate * 100;
 
-        // MMR weights tuned:
-        // combat: 40%, kd/kda: 20%, headshot: 15%, winrate: 15%, mvp:5%, streak bonus:5%
-        const w_combat = 0.40, w_kd = 0.20, w_hs = 0.15, w_wr = 0.15, w_mvp=0.05, w_streak=0.05;
+        const w_combat = 0.40, w_kd = 0.20, w_hs = 0.15, w_wr = 0.15, w_mvp=0.05;
 
-        // normalize factors into 0-100 scale roughly
-        const normalizedCombat = Math.min(100, (combatSc / 4)); // e.g. combat 400 -> 100
+        const normalizedCombat = Math.min(100, (combatSc / 4));
         const normalizedKD = Math.min(100, (kdSc / 5) * 100);
-        const normalizedHS = hsSc; // already 0-100
-        const normalizedWR = wrSc; // 0-100
-        const normalizedMVP = Math.min(100, mvpFactor * 10); // small
+        const normalizedHS = hsSc;
+        const normalizedWR = wrSc;
+        const normalizedMVP = Math.min(100, mvpFactor * 10);
 
-        // streak bonus: if current positive streak >=3 add bonus, >=5 big bonus (2-tier promotion)
         let streakBonusPoints = 0;
         if(st.currentStreak > 0){
-          if(st.currentStreak >= 5) streakBonusPoints = 15; // big bonus for hot streak
+          if(st.currentStreak >= 5) streakBonusPoints = 15;
           else if(st.currentStreak >= 3) streakBonusPoints = 6;
         } else if(st.currentStreak < 0){
           if(st.currentStreak <= -5) streakBonusPoints = -12;
@@ -492,18 +496,13 @@
 
         const baseScore = (normalizedCombat*w_combat + normalizedKD*w_kd + normalizedHS*w_hs + normalizedWR*w_wr + normalizedMVP*w_mvp);
         const mmrRaw = baseScore + streakBonusPoints;
-        // scale to final MMR (example scale: base 800..3200)
-        const mmr = Math.round(800 + mmrRaw * 20); // tune multiplier
+        const mmr = Math.round(800 + mmrRaw * 20);
         st.mmr = mmr;
-
-        // determine tier from mmr
         st.tier = mmrToTier(mmr);
       });
     }
 
     function mmrToTier(mmr){
-      // thresholds (example, adjustable)
-      // 0-899 Iron, 900-1199 Bronze, 1200-1499 Silver, 1500-1799 Gold, 1800-2099 Platinum, 2100-2399 Diamond, 2400-2699 Immortal, 2700+ Radiant
       if(mmr < 900) return {name:'아이언', key:'iron', icon:'icon-iron'};
       if(mmr < 1200) return {name:'브론즈', key:'bronze', icon:'icon-bronze'};
       if(mmr < 1500) return {name:'실버', key:'silver', icon:'icon-silver'};
@@ -515,14 +514,10 @@
     }
 
     function updateTierTable(){
-      // ensure stats computed
       computeAllStatsAndMMR();
       const wrap = document.getElementById('tierTableWrap');
       wrap.innerHTML = '';
-
-      // convert to array and sort by mmr desc
       const arr = Object.values(usersStats).sort((a,b)=> b.mmr - a.mmr);
-      // render top summary
       let topHtml = `<div style="display:flex;justify-content:space-between;align-items:center"><div class="small-muted">총 유저: ${arr.length}</div></div>
         <table><thead><tr><th>순위</th><th>닉네임</th><th>티어</th><th>MMR</th><th>승률</th><th>평균전투</th><th>K/D/A</th><th>MVP</th></tr></thead><tbody>`;
       arr.forEach((u,i)=>{
@@ -541,7 +536,7 @@
       wrap.innerHTML = topHtml;
     }
 
-    // ---------- VIEW: 관리자 - 내전 입력 ----------
+    // ---------- 관리자: 내전 입력 ----------
     function renderAdminInput(container){
       const box = document.createElement('div'); box.className='card';
       box.innerHTML = `<h2>내전 입력</h2>
@@ -564,14 +559,9 @@
           </div>
         </div>`;
       container.appendChild(box);
-
-      // build player rows (5 per team)
       createAdminPlayerInputs('team1Inputs','team1');
       createAdminPlayerInputs('team2Inputs','team2');
-
-      document.getElementById('btnAddMatch').onclick = async ()=>{
-        await adminSaveMatch();
-      };
+      document.getElementById('btnAddMatch').onclick = async ()=>{ await adminSaveMatch(); };
     }
 
     function createAdminPlayerInputs(containerId, teamKey){
@@ -579,7 +569,6 @@
       container.innerHTML = '';
       for(let i=0;i<5;i++){
         const row = document.createElement('div'); row.className='player-row';
-        // select user
         const sel = document.createElement('select'); sel.className = 'input'; sel.style.width='220px';
         sel.id = `${teamKey}_user_${i}`;
         const opt0 = document.createElement('option'); opt0.value=''; opt0.innerText='유저 선택';
@@ -597,14 +586,13 @@
       }
     }
 
-    // Admin save match (collect inputs, add to firestore)
     async function adminSaveMatch(){
       const map = document.getElementById('in_map').value.trim();
       const score = document.getElementById('in_score').value.trim();
       const winner = document.getElementById('in_winner').value;
       const note = document.getElementById('in_note').value.trim();
       let dateVal = document.getElementById('in_date').value.trim();
-      let dateObj = dateVal ? new Date(dateVal) : new Date();
+      let dateObj = dateVal ? new Date(dateVal) : null;
 
       function collect(teamKey){
         const arr = [];
@@ -612,18 +600,18 @@
           const riotid = document.getElementById(`${teamKey}_user_${i}`).value || "";
           const user = users.find(u=>u.riotid===riotid) || {};
           const combat = parseFloat(document.getElementById(`${teamKey}_combat_${i}`).value || 0);
-          const kills = parseInt(document.getElementById(`${teamKey}_kills_${i}`).value || 0);
-          const deaths = parseInt(document.getElementById(`${teamKey}_deaths_${i}`).value || 0);
-          const assists = parseInt(document.getElementById(`${teamKey}_assists_${i}`).value || 0);
+          const kills = parseInt(document.getElementById(`${teamKey}_kills_${i}`).value || 0, 10);
+          const deaths = parseInt(document.getElementById(`${teamKey}_deaths_${i}`).value || 0, 10);
+          const assists = parseInt(document.getElementById(`${teamKey}_assists_${i}`).value || 0, 10);
           const hs = parseFloat(document.getElementById(`${teamKey}_hs_${i}`).value || 0);
           arr.push({
             name: user.name || '',
             riotid: riotid,
-            combat: combat,
-            kills: kills,
-            deaths: deaths,
-            assists: assists,
-            hs: hs
+            combat: isNaN(combat)?0:combat,
+            kills: isNaN(kills)?0:kills,
+            deaths: isNaN(deaths)?0:deaths,
+            assists: isNaN(assists)?0:assists,
+            hs: isNaN(hs)?0:hs
           });
         }
         return arr;
@@ -632,15 +620,15 @@
       const matchObj = {
         map, score, winner, note,
         team1: collect('team1'), team2: collect('team2'),
-        date: serverTimestamp()
+        date: dateObj ? dateObj : serverTimestamp()
       };
       await addDoc(collection(db,'matches'), matchObj);
       await loadMatches();
       alert('내전이 저장되었습니다.');
-      renderView('admin_input'); // refresh
+      renderView('admin_input');
     }
 
-    // ---------- VIEW: 관리자 - 내전 관리 ----------
+    // ---------- 관리자: 내전 관리 ----------
     function renderAdminManage(container){
       const box = document.createElement('div'); box.className='card';
       box.innerHTML = `<h2>내전 관리</h2><div id="adminMatchesList"></div>`;
@@ -657,7 +645,7 @@
       });
     }
 
-    // ---------- VIEW: 관리자 - 유저 관리 ----------
+    // ---------- 관리자: 유저 관리 ----------
     function renderAdminUsers(container){
       const box = document.createElement('div'); box.className='card';
       box.innerHTML = `<h2>유저 관리</h2>
@@ -695,19 +683,21 @@
       });
     }
 
-    // ---------- 삭제 모달 처리 (공통으로 사용) ----------
+    // ---------- 삭제 모달 처리 ----------
     let pendingDelete = null; // {type: 'match'|'user', id:...}
     function confirmDeleteMatch(matchId){
       pendingDelete = {type:'match', id:matchId};
       document.getElementById('confirmTitle').innerText = '내전 삭제 확인';
       document.getElementById('confirmMsg').innerText = '이 내전을 완전히 삭제하시겠습니까? (Firestore에서 영구 삭제됩니다)';
-      document.getElementById('confirmOk').innerText = '네, 삭제합니다';
-      document.getElementById('confirmOk').className = 'btn danger';
-      document.getElementById('confirmOk').onclick = async ()=>{
-        await deleteDoc(doc(db,'matches', pendingDelete.id));
-        closeModal();
+      const okBtn = document.getElementById('confirmOk');
+      okBtn.innerText = '네, 삭제합니다';
+      okBtn.className = 'btn danger';
+      okBtn.onclick = async ()=>{
+        if(pendingDelete && pendingDelete.type === 'match'){
+          await deleteDoc(doc(db,'matches', pendingDelete.id));
+        }
+        window.closeModal();
         await loadMatches();
-        // refresh views where needed
         if(MODE === '관리자') renderView('admin_manage');
         else renderView('spectate_records');
       };
@@ -718,12 +708,14 @@
       pendingDelete = {type:'user', id:riotid};
       document.getElementById('confirmTitle').innerText = '유저 삭제 확인';
       document.getElementById('confirmMsg').innerText = `${riotid} 을(를) 삭제하시겠습니까? 이 작업은 복구되지 않습니다.`;
-      document.getElementById('confirmOk').innerText = '네, 삭제합니다';
-      document.getElementById('confirmOk').className = 'btn danger';
-      document.getElementById('confirmOk').onclick = async ()=>{
-        await deleteDoc(doc(db,'users', pendingDelete.id));
-        // Note: we do not automatically delete matches referencing this user; matches will still show blank name
-        closeModal();
+      const okBtn = document.getElementById('confirmOk');
+      okBtn.innerText = '네, 삭제합니다';
+      okBtn.className = 'btn danger';
+      okBtn.onclick = async ()=>{
+        if(pendingDelete && pendingDelete.type === 'user'){
+          await deleteDoc(doc(db,'users', pendingDelete.id));
+        }
+        window.closeModal();
         await loadUsers();
         if(MODE === '관리자') renderView('admin_users');
         else renderView('spectate_records');
@@ -733,18 +725,10 @@
 
     function openModal(){
       document.getElementById('confirmModal').classList.remove('hidden');
-      document.getElementById('confirmModal').style.display = 'flex';
-    }
-    function closeModal(){
-      document.getElementById('confirmModal').classList.add('hidden');
-      document.getElementById('confirmModal').style.display = 'none';
-      pendingDelete = null;
     }
 
-    // ---------- 초기 호출을 위해 빈 구현 (login에서 사용) ----------
-    // Load data on script load so when user logs in it is quick.
+    // ---------- 초기 호출: 로드해두기 ----------
     (async ()=>{
-      // Preload minimal sets
       await loadUsers();
       await loadMatches();
     })();
