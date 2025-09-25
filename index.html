@@ -23,7 +23,8 @@
     .tabs{display:flex; gap:8px; margin:12px 0;}
     .tab-btn{padding:8px 12px; border-radius:8px; background:transparent; border:1px solid transparent; color:var(--muted); cursor:pointer}
     .tab-btn.active{background:rgba(255,255,255,0.03); color:var(--text); border-color:rgba(255,255,255,0.04)}
-    .hidden{display:none}
+    /* 중요: hidden을 강제 */
+    .hidden{display:none !important}
     .cols{display:flex; gap:16px;}
     .col{flex:1}
     .input-group{margin:8px 0; position:relative}
@@ -54,7 +55,7 @@
     .icon-immortal{background:#7a4bd6;color:#fff}
     .icon-radiant{background:linear-gradient(90deg,#ffd36a,#ff6b8a);color:#111}
     /* modal */
-    .modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999}
+    .modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:9999}
     .modal .modal-box{width:420px;max-width:94%;background:var(--card);padding:18px;border-radius:10px;text-align:center}
     .danger{background:#6d1414}
     .small-note{font-size:13px;color:var(--muted)}
@@ -193,7 +194,7 @@
       }
     }
 
-    // ---------- 전역으로 노출: 로그인/모달 (module 환경에서는 window로 노출해야 inline onclick 동작) ----------
+    // ---------- 전역으로 노출: 로그인/모달 ----------
     window.login = async function(){
       const val = (document.getElementById('modeInput').value || "").trim();
       if(!val) return alert("관전 또는 관리자 를 입력하세요.");
@@ -213,10 +214,20 @@
       await window.login();
     };
 
+    // 모달 닫기: 확실히 숨김
     window.closeModal = function(){
-      document.getElementById('confirmModal').classList.add('hidden');
+      const modal = document.getElementById('confirmModal');
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
       pendingDelete = null;
     };
+
+    // 모달 열기: 확실히 표시
+    function openModal(){
+      const modal = document.getElementById('confirmModal');
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+    }
 
     // ---------- 탭 렌더링 ----------
     function renderTopTabs(){
@@ -723,14 +734,12 @@
       openModal();
     }
 
-    function openModal(){
-      document.getElementById('confirmModal').classList.remove('hidden');
-    }
-
     // ---------- 초기 호출: 로드해두기 ----------
     (async ()=>{
       await loadUsers();
       await loadMatches();
+      // 보너스 안전장치: 혹시라도 보이는 상태면 닫기
+      window.closeModal();
     })();
   </script>
 </body>
