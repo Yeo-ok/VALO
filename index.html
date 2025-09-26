@@ -21,6 +21,8 @@
     .modal-content { background:#1a1a1a; color:#eee; }
     .badge-win { background:#28a745; }
     .badge-lose { background:#dc3545; }
+    .badge-up { background:#0ff; color:#000; }
+    .badge-down { background:#f00; }
   </style>
 </head>
 <body>
@@ -46,7 +48,7 @@
           </div>
           <hr>
           <label class="form-label">전적 복붙</label>
-          <textarea class="form-control mb-2" rows="12" name="raw"></textarea>
+          <textarea class="form-control mb-2" rows="15" name="raw" required></textarea>
           <button type="submit" class="btn btn-primary">저장</button>
         </form>
       </div>
@@ -70,7 +72,7 @@
     <div class="tab-pane fade" id="tierTab">
       <h4>티어표</h4>
       <table class="table table-bordered table-striped">
-        <thead><tr><th>순위</th><th>닉네임</th><th>티어</th><th>MMR</th><th>총 게임</th><th>승</th><th>패</th><th>승률</th></tr></thead>
+        <thead><tr><th>순위</th><th>닉네임</th><th>티어</th><th>MMR</th><th>총 게임</th><th>승</th><th>패</th><th>승률</th><th>변동</th></tr></thead>
         <tbody id="tierTable"></tbody>
       </table>
     </div>
@@ -87,50 +89,53 @@
 
 <script>
 // Firebase Init
-try {
-  const firebaseConfig={apiKey:"AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",authDomain:"valo-cf536.firebaseapp.com",projectId:"valo-cf536",storageBucket:"valo-cf536.appspot.com",messagingSenderId:"463328045633",appId:"1:463328045633:web:7785fd381903d8cee874c0"};
-  firebase.initializeApp(firebaseConfig);
-  var db=firebase.firestore();
-} catch(err){
-  alert("Firebase 초기화 오류: "+err.message);
-  console.error(err);
-}
+const firebaseConfig={apiKey:"AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",authDomain:"valo-cf536.firebaseapp.com",projectId:"valo-cf536",storageBucket:"valo-cf536.appspot.com",messagingSenderId:"463328045633",appId:"1:463328045633:web:7785fd381903d8cee874c0"};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
 
 // 티어 구간
 const tiers=["아이언1","아이언2","아이언3","브론즈1","브론즈2","브론즈3","실버1","실버2","실버3","골드1","골드2","골드3","플래티넘1","플래티넘2","플래티넘3","다이아1","다이아2","다이아3","이모탈1","이모탈2","이모탈3","레디언트"];
 function getTier(mmr){let idx=Math.floor(mmr/100)-9; if(idx<0) idx=0; if(idx>=tiers.length) idx=tiers.length-1; return tiers[idx];}
 
-// 파서 (간단화 버전)
-function parsePlayers(text){
-  let lines=text.split("\n").map(l=>l.trim()).filter(l=>l);
+// --- 파서 ---
+function parsePlayers(lines){
   let players=[];
   for(let i=0;i<lines.length;i++){
     if(/\d+\s*\/\s*\d+\s*\/\s*\d+/.test(lines[i])){
-      let agent=lines[i-5]||"", name=lines[i-4]||"", tier=lines[i-3]||"", rankText=lines[i-2]||"", position=lines[i-1]||"";
-      let kda=lines[i], ratio=lines[i+1]||"", acs=lines[i+2]||"", adr=lines[i+3]||"", dd=lines[i+4]||"", hs=lines[i+5]||"", fk=lines[i+6]||"", fd=lines[i+7]||"", mk=lines[i+8]||"";
-      players.push({agent,name,tier,rankText,position,kda,ratio,acs,adr,dd,hs,fk,fd,mk});
+      let p={};
+      p.agent=lines[i-5]||"";
+      p.name=lines[i-4]||"";
+      p.tier=lines[i-3]||"";
+      p.rankText=lines[i-2]||"";
+      p.position=lines[i-1]||"";
+      p.kda=lines[i];
+      p.ratio=lines[i+1]||"";
+      p.acs=lines[i+2]||"";
+      p.adr=lines[i+3]||"";
+      p.dd=lines[i+4]||"";
+      p.hs=lines[i+5]||"";
+      p.fk=lines[i+6]||"";
+      p.fd=lines[i+7]||"";
+      p.mk=lines[i+8]||"";
+      players.push(p);
     }
   }
   return players;
 }
 function parseMatch(raw){
-  let [teamAraw,teamBraw]=raw.split(/팀 B/); if(!teamBraw) return {team1:[],team2:[]};
-  return {team1:parsePlayers(teamAraw), team2:parsePlayers(teamBraw)};
+  let sections=raw.split("승리적군");
+  let teamA=sections[0].split("\n").map(l=>l.trim()).filter(l=>l);
+  let teamB=sections[1]?sections[1].split("\n").map(l=>l.trim()).filter(l=>l):[];
+  return {team1:parsePlayers(teamA), team2:parsePlayers(teamB)};
 }
 
 // 저장
 document.getElementById("matchForm").addEventListener("submit",async e=>{
   e.preventDefault();
   let data=Object.fromEntries(new FormData(e.target).entries());
-  try {
-    let parsed=parseMatch(data.raw);
-    await db.collection("matches").add({map:data.map,score:data.score,date:data.date,team1:parsed.team1,team2:parsed.team2,created:firebase.firestore.FieldValue.serverTimestamp()});
-    alert("저장 완료!");
-    e.target.reset();
-  } catch(err){
-    alert("저장 오류: "+err.message);
-    console.error(err);
-  }
+  let parsed=parseMatch(data.raw);
+  await db.collection("matches").add({map:data.map,score:data.score,date:data.date,team1:parsed.team1,team2:parsed.team2,created:firebase.firestore.FieldValue.serverTimestamp()});
+  alert("저장 완료!"); e.target.reset();
 });
 
 // 목록
@@ -166,37 +171,46 @@ function showDetail(m){
 // 검색
 async function searchStats(){
   const q=document.getElementById("searchUser").value.trim(); if(!q)return;
-  try {
-    const snaps=await db.collection("matches").get();
-    let games=0,wins=0;
-    snaps.forEach(doc=>{
-      const m=doc.data(); let [sA,sB]=m.score.split("-").map(x=>+x);
-      m.team1.forEach(p=>{if(p.name===q){games++; if(sA>sB)wins++;}});
-      m.team2.forEach(p=>{if(p.name===q){games++; if(sB>sA)wins++;}});
-    });
-    document.getElementById("searchResult").innerHTML=`<p>${q}: ${games}전 ${wins}승 ${games-wins}패 (${((wins/games*100)||0).toFixed(1)}%)</p>`;
-  } catch(err){
-    alert("검색 오류: "+err.message);
-    console.error(err);
-  }
+  const snaps=await db.collection("matches").get();
+  let games=0,wins=0,k=0,d=0,a=0,acs=0,adr=0,dd=0,hs=0;
+  snaps.forEach(doc=>{
+    const m=doc.data(); let [sA,sB]=m.score.split("-").map(x=>+x);
+    function proc(team,isA){
+      team.forEach(p=>{
+        if(p.name===q){
+          games++;
+          let [kk,ddt,aa]=p.kda.split("/").map(x=>+x||0); k+=kk; d+=ddt; a+=aa;
+          acs+=+p.acs||0; adr+=+p.adr||0; dd+=(parseInt(p.dd)||0); hs+=(parseInt(p.hs)||0);
+          let win=(isA?sA>sB:sB>sA); if(win)wins++;
+        }
+      });
+    }
+    proc(m.team1,true); proc(m.team2,false);
+  });
+  document.getElementById("searchResult").innerHTML=`<p>${q}: ${games}전 ${wins}승 ${games-wins}패 (${((wins/games*100)||0).toFixed(1)}%)</p>
+  <p>K/D/A: ${k}/${d}/${a}</p>
+  <p>평균 ACS:${(acs/games).toFixed(1)} / ADR:${(adr/games).toFixed(1)} / DDΔ:${(dd/games).toFixed(1)} / HS:${(hs/games).toFixed(1)}%</p>`;
 }
 
 // 티어표
+let lastTier={};
 db.collection("matches").onSnapshot(snapshot=>{
-  try {
-    let stats={};
-    snapshot.forEach(doc=>{
-      const m=doc.data(); let [sA,sB]=m.score.split("-").map(x=>+x);
-      m.team1.forEach(p=>{if(!stats[p.name])stats[p.name]={games:0,wins:0,mmr:1000}; stats[p.name].games++; if(sA>sB)stats[p.name].wins++; stats[p.name].mmr+=(sA>sB?25:-20);});
-      m.team2.forEach(p=>{if(!stats[p.name])stats[p.name]={games:0,wins:0,mmr:1000}; stats[p.name].games++; if(sB>sA)stats[p.name].wins++; stats[p.name].mmr+=(sB>sA?25:-20);});
-    });
-    let arr=Object.entries(stats).map(([name,v])=>({...v,name})).sort((a,b)=>b.mmr-a.mmr);
-    const tbody=document.getElementById("tierTable"); tbody.innerHTML="";
-    arr.forEach((u,i)=>{let tier=getTier(u.mmr); tbody.innerHTML+=`<tr><td>${i+1}</td><td>${u.name}</td><td>${tier}</td><td>${u.mmr}</td><td>${u.games}</td><td>${u.wins}</td><td>${u.games-u.wins}</td><td>${((u.wins/u.games*100)||0).toFixed(1)}%</td></tr>`;});
-  } catch(err){
-    alert("티어표 오류: "+err.message);
-    console.error(err);
-  }
+  let stats={};
+  snapshot.forEach(doc=>{
+    const m=doc.data(); let [sA,sB]=m.score.split("-").map(x=>+x);
+    m.team1.forEach(p=>{if(!stats[p.name])stats[p.name]={games:0,wins:0,mmr:1000}; stats[p.name].games++; if(sA>sB)stats[p.name].wins++; stats[p.name].mmr+=(sA>sB?25:-20);});
+    m.team2.forEach(p=>{if(!stats[p.name])stats[p.name]={games:0,wins:0,mmr:1000}; stats[p.name].games++; if(sB>sA)stats[p.name].wins++; stats[p.name].mmr+=(sB>sA?25:-20);});
+  });
+  let arr=Object.entries(stats).map(([name,v])=>({...v,name})).sort((a,b)=>b.mmr-a.mmr);
+  const tbody=document.getElementById("tierTable"); tbody.innerHTML="";
+  arr.forEach((u,i)=>{
+    let tier=getTier(u.mmr); let change="";
+    if(lastTier[u.name]&&lastTier[u.name]!==tier){
+      change=lastTier[u.name]!==tier?(u.mmr>1000?'<span class="badge badge-up">승급</span>':'<span class="badge badge-down">강등</span>'):"";
+    }
+    lastTier[u.name]=tier;
+    tbody.innerHTML+=`<tr><td>${i+1}</td><td>${u.name}</td><td>${tier}</td><td>${u.mmr}</td><td>${u.games}</td><td>${u.wins}</td><td>${u.games-u.wins}</td><td>${((u.wins/u.games*100)||0).toFixed(1)}%</td><td>${change}</td></tr>`;
+  });
 });
 </script>
 </body>
