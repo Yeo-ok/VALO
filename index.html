@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>발로란트 내전 전적 시스템 v0.3</title>
+  <title>발로란트 내전 전적 시스템 v0.4</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -25,7 +25,7 @@
   </style>
 </head>
 <body>
-<div id="version">v0.3</div>
+<div id="version">v0.4</div>
 <div class="container py-4">
   <h1 class="text-center mb-4">발로란트 내전 전적 시스템</h1>
   <ul class="nav nav-tabs justify-content-center mb-4">
@@ -74,43 +74,36 @@ const firebaseConfig={apiKey:"AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",authDomai
 firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
 
-// --- 정규식 기반 파서 ---
-function parsePlayers(raw){
-  const tokens=raw.split(/\s+/).filter(x=>x);
-  const players=[];
-  let i=0;
-  while(i<tokens.length){
-    // KDA 패턴 찾기
-    let kdaIndex=tokens.findIndex((t,j)=>j>=i && /^\d+\/\d+\/\d+$/.test(t));
-    if(kdaIndex===-1) break;
-    let p={};
-    p.agent=tokens[i++]||"";
-    p.name=tokens[i++]||"";
-    while(i<kdaIndex-2){ // 닉네임이 공백 포함될 경우 보정
-      p.name+=" "+tokens[i++];
+// --- 줄 기반 파서 (KDA 중심) ---
+function parsePlayers(lines){
+  let players=[];
+  for(let i=0;i<lines.length;i++){
+    if(/\d+\s*\/\s*\d+\s*\/\s*\d+/.test(lines[i])){ // KDA 줄 발견
+      let p={};
+      p.kda=lines[i];
+      p.agent=lines[i-6]||"";
+      p.name=lines[i-5]||"";
+      p.tier=lines[i-4]||"";
+      p.rankText=lines[i-2]||"";  // - , OVP, 3rd 등
+      p.ratio=lines[i+1]||"";
+      p.acs=lines[i+2]||"";
+      p.adr=lines[i+3]||"";
+      p.dd=lines[i+4]||"";
+      p.hs=lines[i+5]||"";
+      p.fk=lines[i+6]||"";
+      p.fd=lines[i+7]||"";
+      p.mk=lines[i+8]||"";
+      players.push(p);
     }
-    p.tier=tokens[i++]||"";
-    p.rankText=tokens[i++]||"";
-    p.kda=tokens[i++]||"";
-    p.ratio=tokens[i++]||"";
-    p.acs=tokens[i++]||"";
-    p.adr=tokens[i++]||"";
-    p.dd=tokens[i++]||"";
-    p.hs=tokens[i++]||"";
-    p.fk=tokens[i++]||"";
-    p.fd=tokens[i++]||"";
-    p.mk=tokens[i++]||"";
-    players.push(p);
   }
   return players;
 }
 
 function parseMatch(raw){
   let [teamAraw,teamBraw]=raw.split(/승리적군|팀 B/);
-  return {
-    team1: parsePlayers(teamAraw||""),
-    team2: parsePlayers(teamBraw||"")
-  };
+  let team1lines=(teamAraw||"").split("\n").map(l=>l.trim()).filter(l=>l);
+  let team2lines=(teamBraw||"").split("\n").map(l=>l.trim()).filter(l=>l);
+  return { team1:parsePlayers(team1lines), team2:parsePlayers(team2lines) };
 }
 
 // 저장
