@@ -18,6 +18,7 @@
     .page-link { background:#222; color:#0ff; border:1px solid #333; }
     .page-item.active .page-link { background:#0ff; color:#000; }
     .modal-content { background:#1a1a1a; color:#eee; }
+    pre { background:#222; padding:10px; border-radius:5px; color:#0f0; }
   </style>
 </head>
 <body>
@@ -26,6 +27,8 @@
   <ul class="nav nav-tabs justify-content-center mb-4">
     <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#inputTab">내전 정보 입력</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#recordTab">내전 전적</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#searchTab">전적 검색</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tierTab">티어표</a></li>
   </ul>
 
   <div class="tab-content">
@@ -64,6 +67,37 @@
         <ul class="pagination" id="pagination"></ul>
       </nav>
     </div>
+
+    <!-- 전적 검색 -->
+    <div class="tab-pane fade" id="searchTab">
+      <h4>전적 검색</h4>
+      <input type="text" id="searchUser" class="form-control mb-2" placeholder="닉네임#태그 입력">
+      <button class="btn btn-info mb-3" onclick="searchStats()">검색</button>
+      <div id="searchResult"></div>
+    </div>
+
+    <!-- 티어표 -->
+    <div class="tab-pane fade" id="tierTab">
+      <h4>티어표</h4>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>순위</th><th>닉네임</th><th>MMR</th><th>총 게임</th><th>승</th><th>패</th><th>승률</th>
+          </tr>
+        </thead>
+        <tbody id="tierTable"></tbody>
+      </table>
+      <h5 class="mt-4">MMR 변동 가중치</h5>
+      <pre>
+기본: 승리 +25, 패배 -20
+ACS: 상위 30% +5, 하위 30% -5
+KDA: ±0~5
+FK/FD/MK 보정
+헤드율: 평균 이상 +3, 이하 -3
+연승/연패: 3연승 +10, 5연승 +20 / 3연패 -10, 5연패 -20
+MVP: 최근 10판 중 1개당 +2, 최대 +20
+      </pre>
+    </div>
   </div>
 </div>
 
@@ -93,7 +127,7 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
-  // --- 전적 파싱 함수 ---
+  // --- 전적 파싱 ---
   function parseMatch(raw){
     const lines=raw.split("\n").map(l=>l.trim()).filter(l=>l);
     let players=[];
@@ -114,7 +148,7 @@
         fd:lines[i+10]?.split("\t")[4]||"",
         mk:lines[i+10]?.split("\t")[5]||""
       };
-      players.push(p);
+      if(p.name) players.push(p);
     }
     return players;
   }
@@ -137,14 +171,12 @@
 
   // --- 페이지네이션 ---
   let currentPage=1, pageSize=10, totalDocs=0;
-
   async function loadPage(page){
     currentPage=page;
     const snap=await db.collection("matches").orderBy("created","desc").get();
     totalDocs=snap.size;
     const start=(page-1)*pageSize;
     const docs=snap.docs.slice(start,start+pageSize);
-
     const list=document.getElementById("recordList");
     list.innerHTML="";
     docs.forEach(doc=>{
@@ -157,7 +189,6 @@
     });
     renderPagination();
   }
-
   function renderPagination(){
     const pages=Math.ceil(totalDocs/pageSize);
     const pag=document.getElementById("pagination");
@@ -201,6 +232,99 @@
     document.getElementById("detailContent").innerHTML=html;
     new bootstrap.Modal(document.getElementById("detailModal")).show();
   }
+
+  // --- 전적 검색 ---
+  async function searchStats(){
+    const q=document.getElementById("searchUser").value.trim();
+    if(!q)return;
+    const snaps=await db.collection("matches").get();
+    let games=0,wins=0,kills=0,deaths=0,assists=0,acs=0,adr=0,dd=0,hs=0;
+    let mapStats={},agentStats={},teamStats={};
+    snaps.forEach(doc=>{
+      const m=doc.data();
+      m.players.forEach(p=>{
+        if(p.name===q){
+          games++;
+          let [k,d,a]=p.kda.split('/').map(x=>+x||0);
+          kills+=k;deaths+=d;assists+=a;
+          acs+=+p.acs||0; adr+=+p.adr||0; dd+=(+p.dd||0); hs+=(parseInt(p.hs)||0);
+          // 맵별
+          if(!mapStats[m.map])mapStats[m.map]={g:0,w:0};
+          mapStats[m.map].g++;
+          // 요원별
+          if(!agentStats[p.agent])agentStats[p.agent]={g:0,w:0};
+          agentStats[p.agent].g++;
+          // 승패
+          let [sA,sB]=m.score.split("-").map(x=>+x);
+          let teamA=m.players.slice(0,5); // 단순: 첫 5명=팀A
+          let userTeam=teamA.find(x=>x.name===q)?"A":"B";
+          let win=(userTeam==="A"?sA>sB:sB>sA);
+          if(win){wins++;mapStats[m.map].w++;agentStats[p.agent].w++;}
+          // 팀별 승률
+          m.players.forEach(o=>{
+            if(o.name!==q){
+              if(!teamStats[o.name])teamStats[o.name]={same:0,sameW:0,opp:0,oppW:0};
+              if(teamA.find(x=>x.name===q)===!!teamA.find(x=>x.name===o.name)){
+                teamStats[o.name].same++; if(win)teamStats[o.name].sameW++;
+              }else{
+                teamStats[o.name].opp++; if(win)teamStats[o.name].oppW++;
+              }
+            }
+          });
+        }
+      });
+    });
+    let html=`<h5>${q} 전적 요약</h5>
+    <p>총 게임:${games}, 승:${wins}, 패:${games-wins}, 승률:${((wins/games*100)||0).toFixed(1)}%</p>
+    <p>K/D/A 합계:${kills}/${deaths}/${assists}</p>
+    <p>평균 ACS:${(acs/games).toFixed(1)} / ADR:${(adr/games).toFixed(1)} / DDΔ:${(dd/games).toFixed(1)} / HS:${(hs/games).toFixed(1)}%</p>`;
+    html+="<h6>맵별 승률</h6><ul>";
+    for(let m in mapStats){let ms=mapStats[m];html+=`<li>${m}: ${ms.w}/${ms.g} (${(ms.w/ms.g*100).toFixed(1)}%)</li>`;}
+    html+="</ul><h6>요원별 승률</h6><ul>";
+    for(let ag in agentStats){let as=agentStats[ag];html+=`<li>${ag}: ${as.w}/${as.g} (${(as.w/as.g*100).toFixed(1)}%)</li>`;}
+    html+="</ul><h6>같은팀/상대팀 승률</h6><ul>";
+    for(let n in teamStats){let ts=teamStats[n];html+=`<li>${n}: 같은팀 ${ts.sameW}/${ts.same} (${((ts.sameW/ts.same*100)||0).toFixed(1)}%) / 상대팀 ${ts.oppW}/${ts.opp} (${((ts.oppW/ts.opp*100)||0).toFixed(1)}%)</li>`;}
+    html+="</ul>";
+    document.getElementById("searchResult").innerHTML=html;
+  }
+
+  // --- 티어표 ---
+  db.collection("matches").onSnapshot(snapshot=>{
+    let stats={};
+    snapshot.forEach(doc=>{
+      const m=doc.data();
+      let [sA,sB]=m.score.split("-").map(x=>+x);
+      let teamA=m.players.slice(0,5); // 단순
+      m.players.forEach((p,idx)=>{
+        if(!stats[p.name])stats[p.name]={games:0,wins:0,mmr:1000,recent:[]};
+        stats[p.name].games++;
+        let win=(idx<5? sA>sB : sB>sA);
+        if(win)stats[p.name].wins++;
+        stats[p.name].recent.push({win,acs:+p.acs||0,mvp:p.rankText==="MVP"});
+      });
+    });
+    // MMR 계산
+    for(let n in stats){
+      let u=stats[n]; let mmr=1000;
+      u.recent.slice(-10).forEach(r=>{
+        mmr+=(r.win?25:-20);
+        if(r.acs>200)mmr+=5; else if(r.acs<150)mmr-=5;
+        if(r.mvp)mmr+=2;
+      });
+      stats[n].mmr=mmr;
+    }
+    let arr=Object.entries(stats).map(([name,v])=>({...v,name}));
+    arr.sort((a,b)=>b.mmr-a.mmr);
+    const tbody=document.getElementById("tierTable");
+    tbody.innerHTML="";
+    arr.forEach((u,i)=>{
+      tbody.innerHTML+=`<tr>
+        <td>${i+1}</td><td>${u.name}</td><td>${u.mmr}</td>
+        <td>${u.games}</td><td>${u.wins}</td><td>${u.games-u.wins}</td>
+        <td>${((u.wins/u.games*100)||0).toFixed(1)}%</td>
+      </tr>`;
+    });
+  });
 
   // 초기 로드
   loadPage(1);
