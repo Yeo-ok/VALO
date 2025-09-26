@@ -21,8 +21,6 @@
     .modal-content { background:#1a1a1a; color:#eee; }
     .badge-win { background:#28a745; }
     .badge-lose { background:#dc3545; }
-    .badge-up { background:#0ff; color:#000; }
-    .badge-down { background:#f00; }
   </style>
 </head>
 <body>
@@ -72,7 +70,7 @@
     <div class="tab-pane fade" id="tierTab">
       <h4>티어표</h4>
       <table class="table table-bordered table-striped">
-        <thead><tr><th>순위</th><th>닉네임</th><th>티어</th><th>MMR</th><th>총 게임</th><th>승</th><th>패</th><th>승률</th><th>변동</th></tr></thead>
+        <thead><tr><th>순위</th><th>닉네임</th><th>티어</th><th>MMR</th><th>총 게임</th><th>승</th><th>패</th><th>승률</th></tr></thead>
         <tbody id="tierTable"></tbody>
       </table>
     </div>
@@ -93,40 +91,37 @@ const firebaseConfig={apiKey:"AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",authDomai
 firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
 
-// 티어 구간
-const tiers=["아이언1","아이언2","아이언3","브론즈1","브론즈2","브론즈3","실버1","실버2","실버3","골드1","골드2","골드3","플래티넘1","플래티넘2","플래티넘3","다이아1","다이아2","다이아3","이모탈1","이모탈2","이모탈3","레디언트"];
-function getTier(mmr){let idx=Math.floor(mmr/100)-9; if(idx<0) idx=0; if(idx>=tiers.length) idx=tiers.length-1; return tiers[idx];}
-
 // --- 파서 ---
-function parsePlayers(lines){
+function parsePlayers(block){
+  let tokens = block.split(/\s+/).filter(x=>x);
   let players=[];
-  for(let i=0;i<lines.length;i++){
-    if(/\d+\s*\/\s*\d+\s*\/\s*\d+/.test(lines[i])){
+  for(let i=0;i<tokens.length;i++){
+    if(/^\d+\/\d+\/\d+$/.test(tokens[i])){ // KDA 발견
       let p={};
-      p.agent=lines[i-5]||"";
-      p.name=lines[i-4]||"";
-      p.tier=lines[i-3]||"";
-      p.rankText=lines[i-2]||"";
-      p.position=lines[i-1]||"";
-      p.kda=lines[i];
-      p.ratio=lines[i+1]||"";
-      p.acs=lines[i+2]||"";
-      p.adr=lines[i+3]||"";
-      p.dd=lines[i+4]||"";
-      p.hs=lines[i+5]||"";
-      p.fk=lines[i+6]||"";
-      p.fd=lines[i+7]||"";
-      p.mk=lines[i+8]||"";
+      p.agent=tokens[i-6]||"";
+      p.name=tokens[i-5]||"";
+      p.tier=tokens[i-4]||"";
+      p.rankText=tokens[i-3]||"";
+      p.position=tokens[i-2]||"";
+      p.kda=tokens[i];
+      p.ratio=tokens[i+1]||"";
+      p.acs=tokens[i+2]||"";
+      p.adr=tokens[i+3]||"";
+      p.dd=tokens[i+4]||"";
+      p.hs=tokens[i+5]||"";
+      p.fk=tokens[i+6]||"";
+      p.fd=tokens[i+7]||"";
+      p.mk=tokens[i+8]||"";
       players.push(p);
     }
   }
   return players;
 }
 function parseMatch(raw){
-  let sections=raw.split("승리적군");
-  let teamA=sections[0].split("\n").map(l=>l.trim()).filter(l=>l);
-  let teamB=sections[1]?sections[1].split("\n").map(l=>l.trim()).filter(l=>l):[];
-  return {team1:parsePlayers(teamA), team2:parsePlayers(teamB)};
+  let [teamAraw,teamBraw]=raw.split(/팀 B|승리적군/);
+  let team1=parsePlayers(teamAraw||"");
+  let team2=parsePlayers(teamBraw||"");
+  return {team1,team2};
 }
 
 // 저장
@@ -168,32 +163,20 @@ function showDetail(m){
   new bootstrap.Modal(document.getElementById("detailModal")).show();
 }
 
-// 검색
+// 검색 (간단 버전)
 async function searchStats(){
   const q=document.getElementById("searchUser").value.trim(); if(!q)return;
   const snaps=await db.collection("matches").get();
-  let games=0,wins=0,k=0,d=0,a=0,acs=0,adr=0,dd=0,hs=0;
+  let games=0,wins=0;
   snaps.forEach(doc=>{
     const m=doc.data(); let [sA,sB]=m.score.split("-").map(x=>+x);
-    function proc(team,isA){
-      team.forEach(p=>{
-        if(p.name===q){
-          games++;
-          let [kk,ddt,aa]=p.kda.split("/").map(x=>+x||0); k+=kk; d+=ddt; a+=aa;
-          acs+=+p.acs||0; adr+=+p.adr||0; dd+=(parseInt(p.dd)||0); hs+=(parseInt(p.hs)||0);
-          let win=(isA?sA>sB:sB>sA); if(win)wins++;
-        }
-      });
-    }
-    proc(m.team1,true); proc(m.team2,false);
+    m.team1.forEach(p=>{if(p.name===q){games++; if(sA>sB)wins++;}});
+    m.team2.forEach(p=>{if(p.name===q){games++; if(sB>sA)wins++;}});
   });
-  document.getElementById("searchResult").innerHTML=`<p>${q}: ${games}전 ${wins}승 ${games-wins}패 (${((wins/games*100)||0).toFixed(1)}%)</p>
-  <p>K/D/A: ${k}/${d}/${a}</p>
-  <p>평균 ACS:${(acs/games).toFixed(1)} / ADR:${(adr/games).toFixed(1)} / DDΔ:${(dd/games).toFixed(1)} / HS:${(hs/games).toFixed(1)}%</p>`;
+  document.getElementById("searchResult").innerHTML=`<p>${q}: ${games}전 ${wins}승 ${games-wins}패 (${((wins/games*100)||0).toFixed(1)}%)</p>`;
 }
 
 // 티어표
-let lastTier={};
 db.collection("matches").onSnapshot(snapshot=>{
   let stats={};
   snapshot.forEach(doc=>{
@@ -204,12 +187,7 @@ db.collection("matches").onSnapshot(snapshot=>{
   let arr=Object.entries(stats).map(([name,v])=>({...v,name})).sort((a,b)=>b.mmr-a.mmr);
   const tbody=document.getElementById("tierTable"); tbody.innerHTML="";
   arr.forEach((u,i)=>{
-    let tier=getTier(u.mmr); let change="";
-    if(lastTier[u.name]&&lastTier[u.name]!==tier){
-      change=lastTier[u.name]!==tier?(u.mmr>1000?'<span class="badge badge-up">승급</span>':'<span class="badge badge-down">강등</span>'):"";
-    }
-    lastTier[u.name]=tier;
-    tbody.innerHTML+=`<tr><td>${i+1}</td><td>${u.name}</td><td>${tier}</td><td>${u.mmr}</td><td>${u.games}</td><td>${u.wins}</td><td>${u.games-u.wins}</td><td>${((u.wins/u.games*100)||0).toFixed(1)}%</td><td>${change}</td></tr>`;
+    tbody.innerHTML+=`<tr><td>${i+1}</td><td>${u.name}</td><td>${getTier(u.mmr)}</td><td>${u.mmr}</td><td>${u.games}</td><td>${u.wins}</td><td>${u.games-u.wins}</td><td>${((u.wins/u.games*100)||0).toFixed(1)}%</td></tr>`;
   });
 });
 </script>
