@@ -111,7 +111,7 @@
       <div class="grid">
         <div>
           <label>내전 정보 입력칸 (원문 붙여넣기)</label>
-          <textarea id="rawPaste" placeholder="여기에 전체를 붙여넣으세요.&#10;예:&#10;네온&#10;P2백종명#KR1&#10;24 / 23 / 81.39:1&#10;-&#10;OVP&#10;평균 점수&#10;246.17&#10;...&#10;승리아군&#10;아이소&#10;P2설 화#Wh1te&#10;..."></textarea>
+          <textarea id="rawPaste" placeholder="여기에 전체를 붙여넣으세요.&#10;예:&#10;네온&#10;백종명#KR1&#10;플래티넘 2&#10;플래티넘&#10;-&#10;OVP&#10;24 / 23 / 8&#10;1.39:1&#10;246.17&#10;147 +0 13% 6 6 0&#10;...&#10;승리적군 ..."></textarea>
         </div>
         <div class="row">
           <button id="btnParse" class="btn">원문 파싱</button>
@@ -121,7 +121,7 @@
         </div>
       </div>
       <div class="note small" style="margin-top:8px">
-        <b>포맷</b> — <span class="pill">요원</span> → <span class="pill">P2/D1/G3…+닉#태그</span> → <span class="pill">K/D/A(비율 포함)</span> → <span class="pill">-</span> → <span class="pill">순위(MVP/3rd…)</span> → <span class="pill">평균 점수</span> → <span class="pill">ACS</span> … 5인 입력 후 <span class="pill">승리아군(또는 승리적군)</span> → 나머지 5인
+        <b>포맷</b> — <span class="pill">요원</span> → <span class="pill">닉네임#태그</span> → <span class="pill">상세 티어</span> → <span class="pill">대분류 티어</span> → <span class="pill">-</span> → <span class="pill">순위(MVP/3rd…)</span> → <span class="pill">K/D/A</span> → <span class="pill">비율</span> → <span class="pill">ACS</span> → <span class="pill">ADR DDΔ HS% FK FD MK</span> … 5인 입력 후 <span class="pill">승리적군/승리아군</span> → 나머지 5인
       </div>
     </div>
 
@@ -259,7 +259,7 @@
   };
   const toast=(m)=>{const t=$('#toast');t.textContent=m;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),2200);};
   const fmtDate=(d)=>{if(!(d instanceof Date)) d=new Date(d); const y=d.getFullYear(),m=('0'+(d.getMonth()+1)).slice(-2),day=('0'+d.getDate()).slice(-2); return `${y}-${m}-${day}`;};
-  const parseDateInput=()=>{ const v=$('#matchDate').value; if(!v) return new Date(); return new Date(v+'T12:00:00'); }; // 정오로 고정
+  const parseDateInput=()=>{ const v=$('#matchDate').value; if(!v) return new Date(); return new Date(v+'T12:00:00'); };
 
   /* ---------------- Tabs ---------------- */
   const switchTab=(name)=>{
@@ -272,7 +272,6 @@
 
   /* ---------------- Agent icon (optional) ---------------- */
   const agentIconMap={};
-
   function agentCell(name){
     const wrap = el('div',{class:'agent-badge'});
     if(agentIconMap[name]){
@@ -285,106 +284,93 @@
     return wrap;
   }
 
-  /* ---------------- Parser (새 포맷 + 구 포맷 겸용) ---------------- */
-
-  // 약식 티어 접두어 → 한글 풀네임
-  const tierMap = {
-    'I':'아이언','B':'브론즈','S':'실버','G':'골드','P':'플래티넘','D':'다이아몬드','A':'에센트','I2':'이모탈', // A=Ascendant, I2=Immortal(충돌 방지)
-  };
-  function expandTier(prefix){ // 예: P2 -> 플래티넘 2
-    if(!prefix) return {rankDetail:'언랭크', tier:'언랭크'};
-    // Immortal이 I로도 겹쳐서 특별 처리
-    if(prefix.startsWith('Im')) return {rankDetail:'이모탈 '+(prefix.replace(/\D/g,'')||''), tier:'이모탈'};
-    const t = prefix[0];
-    const num = prefix.replace(/\D/g,'');
-    const base = (t==='A'?'에센트': t==='I'?'아이언': t==='B'?'브론즈': t==='S'?'실버': t==='G'?'골드': t==='P'?'플래티넘': t==='D'?'다이아몬드': '언랭크');
-    if(base==='언랭크') return {rankDetail:'언랭크', tier:'언랭크'};
-    return {rankDetail:`${base} ${num||''}`.trim(), tier:base};
-  }
+  /* ---------------- Parser (새/구 포맷 겸용, 구 포맷 강화) ---------------- */
 
   function splitTeamBlocks(raw){
-    // '승리아군' 또는 '승리적군'을 경계로 2개 블록으로 분리
-    const m = raw.replace(/\r/g,'').split(/\n\s*승리[^\n]*\n/); // 승리아군/승리적군 모두 잡기
-    if(m.length===1){
-      // 구분선이 없으면 10명 연속 입력으로 가정(앞 5 A, 뒤 5 B)
-      return [m[0], ''];
-    }
-    return [m[0], m[1]];
+    // '승리아군' or '승리적군' line splits A/B
+    const parts = raw.replace(/\r/g,'').split(/\n\s*승리[^\n]*\n/);
+    if(parts.length===1) return [parts[0], ''];
+    return [parts[0], parts[1]];
   }
 
+  // 새 포맷(요약 티어+태그, '평균 점수' 라벨)도 계속 지원
   function parseCompactBlock(text){
-    // 새 포맷: 요원 → (접두티어+태그) → K/D/A+비율 → '-' → 순위 → '평균 점수' → ACS  … 반복
-    const lines = text.split('\n').map(s=>s.trim()).filter(Boolean);
-    const players=[];
-    let i=0;
+    const lines=text.split('\n').map(s=>s.trim()).filter(Boolean);
+    const players=[]; let i=0;
     while(i<lines.length && players.length<5){
-      const agent = lines[i++] || '';
-      const tierTag = lines[i++] || '';
-      const kdaLine = lines[i++] || '';
+      const agent=lines[i++]||'';
+      const tierTag=lines[i++]||''; // P2닉#태그 or 닉#태그
+      const kdaLine=lines[i++]||'';
       if(lines[i]==='-') i++;
-      const place = (lines[i]||'').includes('평균 점수') ? '—' : (lines[i++]||'—');
+      const place=(lines[i]||'').includes('평균 점수')?'—':(lines[i++]||'—');
       if(lines[i]==='평균 점수') i++;
-      const acs = parseFloat(lines[i++]||'0')||0;
+      const acs=parseFloat(lines[i++]||'0')||0;
 
-      // tierTag → (prefix, tag)
-      const m = tierTag.match(/^([A-Z][a-z]?(\d)?)?(.*#.*)$/); // P2닉#태그 / D1닉#태그 / 닉#태그
-      let rankDetail='언랭크', tier='언랭크', tag=tierTag;
-      if(m){
-        const pref = (m[1]||'').trim();
-        tag = (m[3]||tierTag).trim();
-        const e = expandTier(pref);
-        rankDetail = e.rankDetail; tier=e.tier;
-      }
-      // K/D/A
-      const kdaMatch = kdaLine.match(/(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)/);
-      const k = kdaMatch?+kdaMatch[1]:0, d = kdaMatch?+kdaMatch[2]:0, a = kdaMatch?+kdaMatch[3]:0;
+      const kdaMatch=kdaLine.match(/(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)/);
+      const k=kdaMatch?+kdaMatch[1]:0, d=kdaMatch?+kdaMatch[2]:0, a=kdaMatch?+kdaMatch[3]:0;
 
-      players.push({agent, tag, rankDetail, tier, place, k, d, a, acs,
+      // 태그는 뒤쪽 부분(요약티어 제거)
+      const tag = tierTag.replace(/^[A-Z][a-z]?\d?/,'').trim();
+
+      players.push({agent, tag, rankDetail:'', tier:'', place, k,d,a, acs,
         adr:0, ddd:0, hs:0, fk:0, fd:0, mk:0});
     }
     return players;
   }
 
+  // ★ 핵심: 구 포맷(ADR DDΔ HS% FK FD MK가 한 줄에 모두 있는 경우) 강력 파서
   function parseLegacyTailBlock(text){
-    // 구 포맷(DDΔ HS FK FD MK 포함)도 여전히 지원
-    const chunks = text
+    // 플레이어 블록은: agent \n tag \n rankDetail \n tier \n - \n place \n kda \n ratio \n acs \n "ADR DDΔ HS% FK FD MK"
+    const blocks = text
       .replace(/\r/g,'')
-      .split(/\n(?=[가-힣A-Za-z].*\n.*#)/g)
+      .split(/\n(?=[가-힣A-Za-z].*\n.*#)/g) // agent line followed by tag with '#'
       .map(s=>s.trim())
       .filter(Boolean)
       .slice(0,5);
 
     const out=[];
-    for(const c of chunks){
-      const ls=c.split('\n').map(x=>x.trim()).filter(x=>x && x!=='-');
-      if(ls.length<7) continue;
-      const agent = ls[0]; const tagLine = ls[1];
-      const rankDetail = ls[2]||'언랭크'; const tier = ls[3]||'언랭크';
-      let j=4; let place=ls[j]; if(/^\d+\s*\/\s*\d+\s*\/\s*\d+/.test(place)){ place='—'; } else j++;
-      const kda = ls[j++]||''; j++; // ratio skip
-      const acs = parseFloat(ls[j++]||'0')||0;
-      const adr = parseFloat(ls[j++]||'0')||0;
-      const tail = (ls[j++]||'').replace(/\t+/g,' ').split(/\s+/);
-      const ddd = parseInt(tail[0]||'0',10)||0;
-      const hs = parseInt((tail[2]||'0').replace('%',''),10)||0;
-      const fk = parseInt(tail[3]||'0',10)||0;
-      const fd = parseInt(tail[4]||'0',10)||0;
-      const mk = parseInt(tail[5]||'0',10)||0;
+    for(const blk of blocks){
+      const ls = blk.split('\n').map(x=>x.trim()).filter(x=>x.length>0);
+      if(ls.length < 9) continue;
 
-      const m = kda.match(/(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)/);
+      const agent = ls[0];
+      const tag = ls[1];                     // ex) 설 화#Wh1te
+      const rankDetail = ls[2] || '언랭크';  // ex) 플래티넘 2
+      const tier = ls[3] || '언랭크';        // ex) 플래티넘
+
+      let j = 4;
+      if(ls[j] === '-') j++;                 // skip '-'
+
+      const place = ls[j++] || '—';          // ex) MVP / 3rd ...
+      const kdaLine = ls[j++] || '0 / 0 / 0';
+      if(/\d+(\.\d+)?:\d+/.test(ls[j]||'')) j++; // ratio like "1.39:1" (optional)
+      const acs = parseFloat(ls[j++] || '0') || 0;
+
+      // metrics line: "ADR  DDΔ  HS%  FK  FD  MK"
+      const metricsLine = (ls[j++] || '').replace(/\t+/g,' ').replace(/\s+/g,' ').trim();
+      const parts = metricsLine.split(' ');
+      // Some inputs may look like "147 +0 13% 6 6 0"
+      const adr = parseFloat(parts[0] || '0') || 0;
+      const ddd = parseInt((parts[1] || '0').replace('+',''),10) * (String(parts[1]||'').startsWith('-')? -1 : 1);
+      const hs  = parseInt((parts[2] || '0').replace('%',''),10) || 0;
+      const fk  = parseInt(parts[3] || '0',10) || 0;
+      const fd  = parseInt(parts[4] || '0',10) || 0;
+      const mk  = parseInt(parts[5] || '0',10) || 0;
+
+      const m = kdaLine.match(/(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)/);
       const k = m?+m[1]:0, d = m?+m[2]:0, a = m?+m[3]:0;
 
-      out.push({agent, tag:tagLine, rankDetail, tier, place, k, d, a, acs, adr, ddd, hs, fk, fd, mk});
+      out.push({agent, tag, rankDetail, tier, place, k, d, a, acs, adr, ddd, hs, fk, fd, mk});
     }
     return out;
   }
 
   function parseRaw(raw){
     const [partA, partB] = splitTeamBlocks(raw);
-    // 우선 새 포맷 시도
+    // Try compact first
     let A = parseCompactBlock(partA);
     let B = parseCompactBlock(partB);
-    // 새 포맷으로 5인 파싱이 안 되면 구 포맷 보조
+    // If not 5, use legacy (enhanced)
     if(A.length<5) A = parseLegacyTailBlock(partA);
     if(B.length<5) B = parseLegacyTailBlock(partB);
     return {A, B, marker: (raw.includes('승리아군')?'ally': (raw.includes('승리적군')?'enemy':'none'))};
@@ -418,7 +404,7 @@
       tbl.append(tb);
       return tbl;
     };
-    const aWon = parsed.marker==='ally' ? false : (parsed.marker==='enemy' ? false : true); // 기본: 구분선 없으면 A가 승 가정
+    const aWon = parsed.marker ? false : true; // 구분선 있으면 B가 승
     box.append(
       el('div',{class:'row'}, el('b',{}, 'Team A'), el('span',{class:'pill'}, aWon?'승?':'패?')),
       makeTable(parsed.A, aWon),
@@ -482,7 +468,7 @@
 
     // ACS 등수 보정
     const acsSorted=[...ctx.teamStats].sort((a,b)=>b.acs-a.acs);
-    const rankACS = acsSorted.findIndex(p=>p.tag===ctx.player.tag)+1; // 1~5
+    const rankACS = acsSorted.findIndex(p=>p.tag===ctx.player.tag)+1;
     const acsAdj = [0,+8,+4,-2,-4,-8][rankACS] ?? 0;
     if(acsAdj){ delta+=acsAdj; reasons.push(`${acsAdj>0?'+':''}${acsAdj} (팀 ACS ${rankACS}위)`); }
 
@@ -500,7 +486,8 @@
     // DDΔ 보정(모두 0이면 스킵)
     const allDDDZero = ctx.teamStats.every(p=>(p.ddd||0)===0);
     if(!allDDDZero){
-      let dddAdj = Math.max(-6, Math.min(6, Math.round((ctx.player.ddd||0)/100)*2));
+      const raw = ctx.player.ddd||0;
+      let dddAdj = Math.max(-6, Math.min(6, Math.round(Math.abs(raw)/100)*2)) * (raw<0?-1:1);
       if(dddAdj){ delta+=dddAdj; reasons.push(`${dddAdj>=0?'+':''}${dddAdj} (DDΔ)`); }
     }
 
@@ -518,14 +505,14 @@
     fAdj = Math.max(-6, Math.min(6, fAdj));
     if(fAdj){ delta+=fAdj; reasons.push(`${fAdj>0?'+':''}${fAdj} (FK/FD/MK)`); }
 
-    // Lose mitigation / Win shrink (ADR 조건은 모든0이면 ACS만 기준)
+    // 패배 완화/승리 축소
     const meanADR2 = adrs.reduce((a,b)=>a+b,0)/adrs.length||0;
     const topPerf = (rankACS<=2) && (allADRZero ? true : (ctx.player.adr>=meanADR2));
     const lowPerf = (rankACS>=4) && (allADRZero ? true : (ctx.player.adr<meanADR2));
     if(!ctx.won && topPerf){ delta+=6; reasons.push('+6 (패배 완화: 상위 퍼포먼스)'); }
     if(ctx.won && lowPerf){ delta-=6; reasons.push('-6 (승리 축소: 하위 퍼포먼스)'); }
 
-    // 성능 보정 캡(±20)
+    // 성능 보정 캡
     const perf = delta - (ctx.won?25:-25);
     if(perf>20){ delta=(ctx.won?25:-25)+20; reasons.push('(보정 상한 +20 적용)'); }
     if(perf<-20){ delta=(ctx.won?25:-25)-20; reasons.push('(보정 하한 -20 적용)'); }
@@ -583,8 +570,8 @@
       toast('먼저 "원문 파싱"으로 10명을 인식해주세요.'); return;
     }
     const dt = parseDateInput();
-    // 승패 판정: 구분선 뒤 팀(B)이 승
-    const aWon = (lastParsed.marker==='ally' || lastParsed.marker==='enemy') ? false : true;
+    // 구분선(승리xx)이 있었다면 B팀 승
+    const aWon = lastParsed.marker ? false : true;
 
     const docRef = await addDoc(collection(db,'matches'),{
       mapName, score, matchDate: dt, teamA:lastParsed.A, teamB:lastParsed.B, aWon, savedAt: serverTimestamp()
