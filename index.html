@@ -91,34 +91,35 @@ const firebaseConfig={apiKey:"AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",authDomai
 firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
 
-// --- 고정 라인 파서 ---
-function parsePlayers(lines){
+// --- 정규식 기반 파서 ---
+function parsePlayers(text){
+  const regex = /([가-힣a-zA-Z]+)\s+([\w#]+)\s+([\w\s]+)\s+([\w-]+)\s+(\d+\s*\/\s*\d+\s*\/\s*\d+)\s+([\d.]+:1)\s+([\d.]+)\s+(\d+)\s+([+-]?\d+)\s+(\d+%)\s+(\d+)\s+(\d+)\s+(\d+)/g;
   let players=[];
-  let blockSize=13; // 요원 ~ MK 까지 13줄
-  for(let i=0;i<lines.length;i+=blockSize){
-    let chunk=lines.slice(i,i+blockSize);
-    if(chunk.length<10) continue; // 불완전한 경우 skip
-    let p={};
-    p.agent=chunk[0]||"";
-    p.name=chunk[1]||"";
-    p.tier=chunk[2]||"";
-    p.rankText=chunk[5]||"";
-    p.kda=chunk[6]||"";
-    p.ratio=chunk[7]||"";
-    p.acs=chunk[8]||"";
-    p.adr=chunk[9]||"";
-    p.dd=chunk[10]||"";
-    p.hs=chunk[11]||"";
-    p.fk=chunk[12]||""; // FD, MK는 스페이스 구분이라 추가 파싱 필요
-    players.push(p);
+  let match;
+  while((match=regex.exec(text))!==null){
+    players.push({
+      agent: match[1],
+      name: match[2],
+      tier: match[3],
+      rankText: match[4],
+      kda: match[5],
+      ratio: match[6],
+      acs: match[7],
+      adr: match[8],
+      dd: match[9],
+      hs: match[10],
+      fk: match[11],
+      fd: match[12],
+      mk: match[13]
+    });
   }
   return players;
 }
 function parseMatch(raw){
-  let sections=raw.split("승리적군");
-  let team1=sections[0].split("\n").map(l=>l.trim()).filter(l=>l);
-  let team2=sections[1]?sections[1].split("\n").map(l=>l.trim()).filter(l=>l):[];
-  return {team1:parsePlayers(team1), team2:parsePlayers(team2)};
+  let [teamAraw,teamBraw]=raw.split(/팀 B|승리적군/);
+  let team1=parsePlayers(teamAraw||"");
+  let team2=parsePlayers(teamBraw||"");
+  return {team1,team2};
 }
 
 // 저장
@@ -150,8 +151,10 @@ function showDetail(m){
   function render(players,label,isWin){
     let badge=isWin?'<span class="badge badge-win">승리</span>':'<span class="badge badge-lose">패배</span>';
     let out=`<h6>${label} ${badge}</h6><table class="table table-bordered table-sm table-striped"><thead><tr>
-    <th>요원</th><th>닉네임</th><th>티어</th><th>순위</th><th>KDA</th><th>비율</th><th>ACS</th><th>ADR</th><th>DDΔ</th><th>HS%</th><th>FK</th></tr></thead><tbody>`;
-    players.forEach(p=>{out+=`<tr><td>${p.agent}</td><td>${p.name}</td><td>${p.tier}</td><td>${p.rankText}</td><td>${p.kda}</td><td>${p.ratio}</td><td>${p.acs}</td><td>${p.adr}</td><td>${p.dd}</td><td>${p.hs}</td><td>${p.fk}</td></tr>`;});
+    <th>요원</th><th>닉네임</th><th>티어</th><th>순위</th><th>KDA</th><th>비율</th><th>ACS</th><th>ADR</th><th>DDΔ</th><th>HS%</th><th>FK</th><th>FD</th><th>MK</th></tr></thead><tbody>`;
+    players.forEach(p=>{
+      out+=`<tr><td>${p.agent}</td><td>${p.name}</td><td>${p.tier}</td><td>${p.rankText}</td><td>${p.kda}</td><td>${p.ratio}</td><td>${p.acs}</td><td>${p.adr}</td><td>${p.dd}</td><td>${p.hs}</td><td>${p.fk}</td><td>${p.fd}</td><td>${p.mk}</td></tr>`;
+    });
     out+="</tbody></table>"; return out;
   }
   html+=render(m.team1,"팀 A",sA>sB);
@@ -159,8 +162,6 @@ function showDetail(m){
   document.getElementById("detailContent").innerHTML=html;
   new bootstrap.Modal(document.getElementById("detailModal")).show();
 }
-
-// 검색 & 티어표는 이전 코드 그대로 붙여도 됩니다
 </script>
 </body>
 </html>
