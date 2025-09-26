@@ -9,43 +9,32 @@
       --bg:#0f1113; --card:#151618; --accent:#ff4655; --muted:#9aa3ad; --text:#eee;
     }
     *{box-sizing:border-box}
-    body{
-      margin:0; font-family:Inter, Arial, sans-serif;
-      background:linear-gradient(180deg,#0b0c0d 0%, #0f1113 100%); color:var(--text);
-      -webkit-font-smoothing:antialiased; padding:24px;
-    }
-    .wrap{max-width:1200px;margin:0 auto;}
-    header{display:flex;align-items:center;gap:16px; margin-bottom:18px;}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(180deg,#0b0c0d 0%,#0f1113 100%);color:var(--text);-webkit-font-smoothing:antialiased;padding:24px}
+    .wrap{max-width:1200px;margin:0 auto}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
     h1{margin:0;color:var(--accent);font-size:20px}
     .top-right{margin-left:auto;display:flex;gap:8px;align-items:center}
-    input, select, button {font-family:inherit}
-    .card{background:var(--card); padding:16px; border-radius:10px; border:1px solid rgba(255,255,255,0.04)}
-    .tabs{display:flex; gap:8px; margin:12px 0;}
-    .tab-btn{padding:8px 12px; border-radius:8px; background:transparent; border:1px solid transparent; color:var(--muted); cursor:pointer}
-    .tab-btn.active{background:rgba(255,255,255,0.03); color:var(--text); border-color:rgba(255,255,255,0.04)}
-    /* 중요: hidden을 강제 */
-    .hidden{display:none !important}
-    .cols{display:flex; gap:16px;}
+    input,select,button,textarea{font-family:inherit}
+    .card{background:var(--card);padding:16px;border-radius:10px;border:1px solid rgba(255,255,255,0.04)}
+    .tabs{display:flex;gap:8px;margin:12px 0}
+    .tab-btn{padding:8px 12px;border-radius:8px;background:transparent;border:1px solid transparent;color:var(--muted);cursor:pointer}
+    .tab-btn.active{background:rgba(255,255,255,0.03);color:var(--text);border-color:rgba(255,255,255,0.04)}
+    .hidden{display:none!important}
+    .cols{display:flex;gap:16px}
     .col{flex:1}
-    .input-group{margin:8px 0; position:relative}
-    .input{width:100%; padding:8px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.06); background:#0d0e10; color:var(--text)}
+    .input-group{margin:8px 0;position:relative}
+    .input{width:100%;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:#0d0e10;color:var(--text)}
+    textarea.input{resize:vertical}
     label.small{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
     .player-row{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
     .player-row .input{width:140px}
     .player-row .input.small{width:80px}
     .btn{padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:white;cursor:pointer}
-    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06); color:var(--muted)}
-    .record{border:1px solid rgba(255,255,255,0.03); padding:10px; margin-bottom:10px; border-radius:8px; background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
-    .record .meta{display:flex;gap:12px;align-items:center;margin-bottom:6px}
-    .small-muted{color:var(--muted);font-size:13px}
-    .flex{display:flex;gap:8px;align-items:center}
-    .right{margin-left:auto}
-    .page-controls{display:flex;gap:8px;align-items:center;justify-content:center;margin:12px 0}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
     table{width:100%;border-collapse:collapse}
     th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
-    .tier-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:linear-gradient(90deg, rgba(255,255,255,0.02), transparent)}
+    .tier-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:linear-gradient(90deg,rgba(255,255,255,0.02),transparent)}
     .tier-icon{width:36px;height:20px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#111;font-size:12px}
-    /* generate simple color-coded tier icons */
     .icon-iron{background:#8a8a8a;color:#fff}
     .icon-bronze{background:#a76a31;color:#fff}
     .icon-silver{background:#aeb8c0;color:#111}
@@ -54,27 +43,14 @@
     .icon-diamond{background:#5a8ee6;color:#fff}
     .icon-immortal{background:#7a4bd6;color:#fff}
     .icon-radiant{background:linear-gradient(90deg,#ffd36a,#ff6b8a);color:#111}
-    /* modal */
-    .modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:9999}
-    .modal .modal-box{width:420px;max-width:94%;background:var(--card);padding:18px;border-radius:10px;text-align:center}
-    .danger{background:#6d1414}
-    .small-note{font-size:13px;color:var(--muted)}
     .footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
-    a.link{color:#4eaaff}
-    /* responsive */
-    @media(max-width:900px){
-      .cols{flex-direction:column}
-      .player-row .input{width:48%}
-    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <h1>발로란트 내전 플랫폼</h1>
-      <div class="top-right">
-        <div id="modeLabel" class="small-muted">모드: 로그인</div>
-      </div>
+      <div class="top-right"><div id="modeLabel" class="small-muted">모드: 로그인</div></div>
     </header>
 
     <!-- LOGIN -->
@@ -82,665 +58,75 @@
       <h2>모드 선택</h2>
       <div class="input-group">
         <label class="small">모드 입력 (관전 또는 관리자)</label>
-        <input id="modeInput" class="input" type="text" placeholder="예: 관전 또는 관리자" />
+        <input id="modeInput" class="input" type="text" placeholder="예: 관전 또는 관리자"/>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn" onclick="login()">입장</button>
         <button class="btn ghost" onclick="autoSpectate()">관전으로 바로 입장</button>
       </div>
-      <p class="small-note" style="margin-top:10px">관리자 모드는 내전 입력 / 삭제 / 유저 삭제 등 관리자 권한을 제공합니다.</p>
     </div>
 
-    <!-- MAIN AREA (hidden until login) -->
+    <!-- MAIN AREA -->
     <div id="mainArea" class="hidden">
-      <!-- top tabs (mode-specific tabs will be rendered dynamically) -->
       <div id="globalTabs" class="tabs card" style="margin-top:12px;padding:8px"></div>
-
-      <!-- CONTENT -->
       <div id="contentArea" style="margin-top:12px;"></div>
     </div>
-
-    <div class="footer">관리자 기능 사용 시 삭제는 Firebase에서 완전 삭제됩니다. 모든 통계는 저장된 matches 컬렉션을 기준으로 실시간 계산됩니다.</div>
+    <div class="footer">관리자 기능 사용 시 삭제는 Firebase에서 완전 삭제됩니다.</div>
   </div>
 
-  <!-- MODAL (reused) -->
-  <div id="confirmModal" class="modal hidden">
-    <div class="modal-box card">
-      <h3 id="confirmTitle">확인</h3>
-      <p id="confirmMsg">진행하시겠습니까?</p>
-      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
-        <button class="btn danger" id="confirmOk">삭제</button>
-        <button class="btn ghost" onclick="closeModal()">취소</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- FIREBASE SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import {
-      getFirestore, collection, doc, setDoc, addDoc, getDocs, deleteDoc, query, orderBy, serverTimestamp, getDoc
-    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, setDoc, addDoc, getDocs, deleteDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    // ---------- Firebase 설정 (사용자 제공 설정 유지) ----------
-    const firebaseConfig = {
-      apiKey: "AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",
-      authDomain: "valo-cf536.firebaseapp.com",
-      projectId: "valo-cf536",
-      storageBucket: "valo-cf536.appspot.com",
-      messagingSenderId: "463328045633",
-      appId: "1:463328045633:web:7785fd381903d8cee874c0"
-    };
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    const firebaseConfig={apiKey:"AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",authDomain:"valo-cf536.firebaseapp.com",projectId:"valo-cf536",storageBucket:"valo-cf536.appspot.com",messagingSenderId:"463328045633",appId:"1:463328045633:web:7785fd381903d8cee874c0"};
+    const app=initializeApp(firebaseConfig);const db=getFirestore(app);
 
-    // ---------- 전역 상태 ----------
-    let MODE = null; // "관전" 또는 "관리자"
-    let users = []; // {name, riotid}
-    let matches = []; // {id?, map, score, winner, date, team1:[...], team2:[...]}
-    let currentMatchPage = 0;
-    const PAGE_SIZE = 5;
+    let MODE=null,users=[],matches=[],currentMatchPage=0,PAGE_SIZE=5;
 
-    // ---------- 유틸: 타임스탬프/날짜 헬퍼 ----------
-    function tsToDate(ts){
-      if(!ts) return null;
-      // Firestore Timestamp has toDate() or toMillis()
-      if (typeof ts.toDate === 'function') return ts.toDate();
-      if (typeof ts.toMillis === 'function') return new Date(ts.toMillis());
-      if (ts.seconds) return new Date(ts.seconds * 1000);
-      return new Date(ts);
-    }
-    function tsToMillis(ts){
-      if(!ts) return 0;
-      if (typeof ts.toMillis === 'function') return ts.toMillis();
-      if (ts.seconds) return ts.seconds * 1000;
-      if (typeof ts === 'number') return ts;
-      return new Date(ts).getTime();
-    }
-    function fmtDate(ts) {
-      const d = tsToDate(ts);
-      if(!d) return "";
-      return d.toLocaleString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit', hour:'2-digit', minute:'2-digit'});
-    }
+    async function loadUsers(){users=[];const snap=await getDocs(collection(db,"users"));snap.forEach(s=>users.push(s.data()));}
+    async function loadMatches(){matches=[];const snap=await getDocs(query(collection(db,"matches"),orderBy("date","desc")));snap.forEach(s=>{let d=s.data();d._id=s.id;matches.push(d);});}
 
-    // ---------- 초기 데이터 로드 헬퍼 ----------
-    async function awaitInitLoad(){
-      await loadUsers();
-      await loadMatches();
-    }
+    window.login=async function(){const val=document.getElementById("modeInput").value.trim();if(val!=="관전"&&val!=="관리자")return alert("정확히 입력");MODE=val;document.getElementById("loginScreen").classList.add("hidden");document.getElementById("mainArea").classList.remove("hidden");document.getElementById("modeLabel").innerText=`모드: ${MODE}`;await loadUsers();await loadMatches();renderTopTabs();openDefaultTab();};
+    window.autoSpectate=async function(){document.getElementById("modeInput").value="관전";await window.login();};
 
-    // ---------- Firestore 로드 함수 ----------
-    async function loadUsers(){
-      users = [];
-      try{
-        const snap = await getDocs(collection(db,'users'));
-        snap.forEach(s => users.push(s.data()));
-      }catch(e){
-        console.error('loadUsers error', e);
-      }
-    }
+    function renderTopTabs(){const c=document.getElementById("globalTabs");c.innerHTML="";if(MODE==="관전"){c.appendChild(tabBtn("내전 기록",()=>renderSpectateRecords()));c.appendChild(tabBtn("전적 검색",()=>renderSpectateSearch()));c.appendChild(tabBtn("티어표",()=>renderSpectateTiers()));}else{c.appendChild(tabBtn("내전 입력",()=>renderAdminInput()));c.appendChild(tabBtn("내전 관리",()=>renderAdminManage()));c.appendChild(tabBtn("유저 관리",()=>renderAdminUsers()));c.appendChild(tabBtn("전적 검색",()=>renderSpectateSearch()));}}
+    function tabBtn(text,onClick){const b=document.createElement("button");b.className="tab-btn";b.innerText=text;b.onclick=()=>{document.querySelectorAll(".tab-btn").forEach(x=>x.classList.remove("active"));b.classList.add("active");onClick();};return b;}
+    function openDefaultTab(){const f=document.querySelector(".tab-btn");if(f)f.click();}
 
-    async function loadMatches(){
-      matches = [];
-      try{
-        const snap = await getDocs(query(collection(db,'matches'), orderBy('date','desc')));
-        snap.forEach(s=>{
-          const d = s.data();
-          d._id = s.id;
-          matches.push(d);
-        });
-      }catch(e){
-        console.error('loadMatches error', e);
-      }
-    }
+    // 관전: 내전 기록
+    function renderSpectateRecords(){const content=document.getElementById("contentArea");content.innerHTML="";currentMatchPage=0;const box=document.createElement("div");box.className="card";box.innerHTML=`<h2>내전 기록</h2><div id="recordsList"></div><div style="display:flex;justify-content:center;gap:8px;margin-top:10px"><button class="btn ghost" id="prevPage">&lt;</button><div id="pageInfo" class="small-muted"></div><button class="btn ghost" id="nextPage">&gt;</button></div>`;content.appendChild(box);document.getElementById("prevPage").onclick=()=>{if(currentMatchPage>0){currentMatchPage--;updateRecordsList();}};document.getElementById("nextPage").onclick=()=>{if((currentMatchPage+1)*PAGE_SIZE<matches.length){currentMatchPage++;updateRecordsList();}};updateRecordsList();}
+    function updateRecordsList(){const listDiv=document.getElementById("recordsList");listDiv.innerHTML="";const start=currentMatchPage*PAGE_SIZE;const page=matches.slice(start,start+PAGE_SIZE);page.forEach(m=>listDiv.appendChild(renderMatchRecord(m)));document.getElementById("pageInfo").innerText=`페이지 ${currentMatchPage+1} / ${Math.max(1,Math.ceil(matches.length/PAGE_SIZE))}`;}
+    function renderMatchRecord(m){const div=document.createElement("div");div.className="card";div.style.marginBottom="8px";div.innerHTML=`<div class="small-muted">${(m.map||'-')} / ${m.score||'-'} / 승:${m.winner}</div>`;["team1","team2"].forEach(t=>{const team=document.createElement("div");team.innerHTML=`<div style="font-weight:600;margin-top:6px">${t==="team1"?"팀1":"팀2"} ${m.winner===t?'<span style="color:var(--accent)">승리</span>':""}</div>`;(m[t]||[]).forEach(p=>{const row=document.createElement("div");row.className="small-muted";row.innerText=`${p.name||p.riotid}: ${p.kills}/${p.deaths}/${p.assists} | ACS:${p.acs||0} ADR:${p.adr||0} HS:${p.hs||0}%`;team.appendChild(row);});div.appendChild(team);});return div;}
 
-    // ---------- 전역으로 노출: 로그인/모달 ----------
-    window.login = async function(){
-      const val = (document.getElementById('modeInput').value || "").trim();
-      if(!val) return alert("관전 또는 관리자 를 입력하세요.");
-      if(val !== "관전" && val !== "관리자") return alert("정확히 '관전' 또는 '관리자'를 입력하세요.");
-      MODE = val;
-      document.getElementById('loginScreen').classList.add('hidden');
-      document.getElementById('mainArea').classList.remove('hidden');
-      document.getElementById('modeLabel').innerText = `모드: ${MODE}`;
-      // 초기 데이터 로드 (await)
-      await awaitInitLoad();
-      renderTopTabs();
-      openDefaultTab();
-    };
+    // 관전: 전적 검색
+    function renderSpectateSearch(){const content=document.getElementById("contentArea");content.innerHTML="";const box=document.createElement("div");box.className="card";box.innerHTML=`<h2>전적 검색</h2><input id="searchInput" class="input" placeholder="닉네임 또는 Riot ID"/><button class="btn" id="searchBtn">검색</button><div id="searchResult" style="margin-top:12px"></div>`;content.appendChild(box);document.getElementById("searchBtn").onclick=()=>doSearch();}
+    function doSearch(){const q=document.getElementById("searchInput").value.trim();const out=document.getElementById("searchResult");out.innerHTML="";if(!q)return;let results=[];matches.forEach(m=>["team1","team2"].forEach(t=>(m[t]||[]).forEach(p=>{if((p.name&&p.name.includes(q))||(p.riotid&&p.riotid.includes(q)))results.push({m,team:t,p});})));if(results.length===0){out.innerHTML=`<div class="small-muted">검색결과 없음</div>`;return;}let k=0,d=0,a=0,g=0,acs=0,adr=0;results.forEach(r=>{k+=r.p.kills||0;d+=r.p.deaths||0;a+=r.p.assists||0;acs+=r.p.acs||0;adr+=r.p.adr||0;g++;});out.innerHTML=`<div class="small-muted">게임수:${g} KDA:${((k+a)/Math.max(1,d)).toFixed(2)} 평균ACS:${(acs/g).toFixed(1)} 평균ADR:${(adr/g).toFixed(1)}</div>`;}
 
-    window.autoSpectate = async function(){
-      document.getElementById('modeInput').value = "관전";
-      await window.login();
-    };
+    // 관전: 티어표
+    function renderSpectateTiers(){const content=document.getElementById("contentArea");content.innerHTML="";const box=document.createElement("div");box.className="card";box.innerHTML=`<h2>티어표</h2><div id="tierTableWrap"></div>`;content.appendChild(box);computeAllStatsAndMMR();updateTierTable();}
+    let usersStats={};
+    function computeAllStatsAndMMR(){usersStats={};matches.forEach(m=>["team1","team2"].forEach(t=>(m[t]||[]).forEach(p=>{if(!usersStats[p.riotid])usersStats[p.riotid]={name:p.name,riotid:p.riotid,games:0,k:0,d:0,a:0,acs:0,adr:0};let st=usersStats[p.riotid];st.games++;st.k+=p.kills||0;st.d+=p.deaths||0;st.a+=p.assists||0;st.acs+=p.acs||0;st.adr+=p.adr||0;})));Object.values(usersStats).forEach(st=>{st.avgACS=st.games?st.acs/st.games:0;st.avgADR=st.games?st.adr/st.games:0;st.kda=(st.k+st.a)/Math.max(1,st.d);st.mmr=Math.round(1000+st.avgACS+st.avgADR+st.kda*50);st.tier=mmrToTier(st.mmr);});}
+    function mmrToTier(m){if(m<1200)return{name:"브론즈",icon:"icon-bronze"};if(m<1500)return{name:"실버",icon:"icon-silver"};if(m<1800)return{name:"골드",icon:"icon-gold"};if(m<2100)return{name:"플래티넘",icon:"icon-platinum"};if(m<2400)return{name:"다이아",icon:"icon-diamond"};if(m<2700)return{name:"이모탈",icon:"icon-immortal"};return{name:"레이디언트",icon:"icon-radiant"};}
+    function updateTierTable(){const arr=Object.values(usersStats).sort((a,b)=>b.mmr-a.mmr);let html=`<table><thead><tr><th>순위</th><th>닉네임</th><th>MMR</th><th>티어</th><th>KDA</th><th>평균ACS</th><th>평균ADR</th></tr></thead><tbody>`;arr.forEach((u,i)=>{html+=`<tr><td>${i+1}</td><td>${u.name||u.riotid}</td><td>${u.mmr}</td><td><span class="tier-badge"><span class="tier-icon ${u.tier.icon}">${u.tier.name[0]}</span>${u.tier.name}</span></td><td>${u.kda.toFixed(2)}</td><td>${u.avgACS.toFixed(1)}</td><td>${u.avgADR.toFixed(1)}</td></tr>`;});html+="</tbody></table>";document.getElementById("tierTableWrap").innerHTML=html;}
 
-    // 모달 닫기: 확실히 숨김
-    window.closeModal = function(){
-      const modal = document.getElementById('confirmModal');
-      modal.classList.add('hidden');
-      modal.style.display = 'none';
-      pendingDelete = null;
-    };
+    // 관리자: 입력
+    function renderAdminInput(){const content=document.getElementById("contentArea");content.innerHTML="";const box=document.createElement("div");box.className="card";box.innerHTML=`<h2>내전 입력</h2>
+      <div class="input-group"><label class="small">맵</label><input id="in_map" class="input"/></div>
+      <div class="input-group"><label class="small">스코어</label><input id="in_score" class="input"/></div>
+      <div class="input-group"><label class="small">승리팀</label><select id="in_winner" class="input"><option value="team1">팀1</option><option value="team2">팀2</option></select></div>
+      <div class="input-group"><label class="small">전적 원본 텍스트</label><textarea id="rawText" class="input" rows="10"></textarea></div>
+      <button class="btn" id="parseBtn">텍스트 파싱</button>
+      <button class="btn" id="saveBtn">저장</button>`;content.appendChild(box);
+      document.getElementById("parseBtn").onclick=()=>{const raw=document.getElementById("rawText").value;const parsed=parseValorantText(raw);window._parsedMatch=parsed;alert("파싱완료! 저장버튼을 누르세요.");};
+      document.getElementById("saveBtn").onclick=async()=>{if(!window._parsedMatch)return alert("먼저 파싱");const m={map:document.getElementById("in_map").value,score:document.getElementById("in_score").value,winner:document.getElementById("in_winner").value,date:serverTimestamp(),...window._parsedMatch};await addDoc(collection(db,"matches"),m);await loadMatches();alert("저장완료");};}
 
-    // 모달 열기: 확실히 표시
-    function openModal(){
-      const modal = document.getElementById('confirmModal');
-      modal.classList.remove('hidden');
-      modal.style.display = 'flex';
-    }
+    function parseValorantText(raw){let lines=raw.split("\n").map(x=>x.trim()).filter(x=>x);let team1=[],team2=[];let toTeam2=false;lines.forEach(line=>{if(line.includes("승리적군")){toTeam2=true;return;}if(line.match(/\d+\s*\/\s*\d+\s*\/\s*\d+/)){let name=line.split(/\s+/)[0];let kda=line.match(/(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)/);let kills=+kda[1],deaths=+kda[2],assists=+kda[3];let acsMatch=line.match(/\s(\d{2,3}\.\d{2})/);let acs=acsMatch?parseFloat(acsMatch[1]):0;let adrMatch=line.match(/\s(\d{2,3})\s*[+-]/);let adr=adrMatch?parseFloat(adrMatch[1]):0;let hs=line.match(/(\d+)%/);let hsVal=hs?+hs[1]:0;let obj={name,riotid:name,kills,deaths,assists,acs,adr,hs:hsVal};if(!toTeam2)team1.push(obj);else team2.push(obj);}});return{team1,team2};}
 
-    // ---------- 탭 렌더링 ----------
-    function renderTopTabs(){
-      const container = document.getElementById('globalTabs');
-      container.innerHTML = '';
-      if(MODE === "관전"){
-        container.appendChild(tabBtn('내전 기록', ()=>renderView('spectate_records')));
-        container.appendChild(tabBtn('전적 검색', ()=>renderView('spectate_search')));
-        container.appendChild(tabBtn('티어표', ()=>renderView('spectate_tiers')));
-      } else {
-        container.appendChild(tabBtn('내전 입력', ()=>renderView('admin_input')));
-        container.appendChild(tabBtn('내전 관리', ()=>renderView('admin_manage')));
-        container.appendChild(tabBtn('유저 관리', ()=>renderView('admin_users')));
-      }
-    }
+    // 관리자: 관리/유저 관리 (간단)
+    function renderAdminManage(){const content=document.getElementById("contentArea");content.innerHTML="";const box=document.createElement("div");box.className="card";box.innerHTML="<h2>내전 관리</h2>";content.appendChild(box);matches.forEach(m=>{box.appendChild(renderMatchRecord(m));});}
+    function renderAdminUsers(){const content=document.getElementById("contentArea");content.innerHTML="";const box=document.createElement("div");box.className="card";box.innerHTML="<h2>유저 관리</h2>";content.appendChild(box);users.forEach(u=>{let row=document.createElement("div");row.className="small-muted";row.innerText=`${u.name} (${u.riotid})`;box.appendChild(row);});}
 
-    function tabBtn(text, onClick){
-      const b = document.createElement('button');
-      b.className = 'tab-btn';
-      b.innerText = text;
-      b.onclick = ()=>{
-        document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
-        b.classList.add('active');
-        onClick();
-      };
-      return b;
-    }
-
-    function openDefaultTab(){
-      const first = document.querySelector('.tab-btn');
-      if(first) first.click();
-    }
-
-    // ---------- VIEW 로직 ----------
-    function renderView(view){
-      const content = document.getElementById('contentArea');
-      content.innerHTML = '';
-      if(view === 'spectate_records'){
-        renderSpectateRecords(content);
-      } else if(view === 'spectate_search'){
-        renderSpectateSearch(content);
-      } else if(view === 'spectate_tiers'){
-        renderSpectateTiers(content);
-      } else if(view === 'admin_input'){
-        renderAdminInput(content);
-      } else if(view === 'admin_manage'){
-        renderAdminManage(content);
-      } else if(view === 'admin_users'){
-        renderAdminUsers(content);
-      }
-    }
-
-    // ---------- 관전: 내전 기록 ----------
-    function renderSpectateRecords(container){
-      currentMatchPage = 0;
-      const box = document.createElement('div'); box.className='card';
-      box.innerHTML = `<h2>내전 기록</h2>
-        <div id="recordsList"></div>
-        <div class="page-controls"><button class="btn ghost" id="prevPage">&lt; 이전</button><div id="pageInfo" class="small-muted"></div><button class="btn ghost" id="nextPage">다음 &gt;</button></div>`;
-      container.appendChild(box);
-      document.getElementById('prevPage').onclick = ()=>{ if(currentMatchPage>0){ currentMatchPage--; updateRecordsList(); } };
-      document.getElementById('nextPage').onclick = ()=>{ if((currentMatchPage+1)*PAGE_SIZE < matches.length){ currentMatchPage++; updateRecordsList(); } };
-      updateRecordsList();
-    }
-
-    function updateRecordsList(){
-      const listDiv = document.getElementById('recordsList');
-      listDiv.innerHTML = '';
-      const start = currentMatchPage * PAGE_SIZE;
-      const page = matches.slice(start, start + PAGE_SIZE);
-      page.forEach(m => listDiv.appendChild(renderMatchRecord(m, false)));
-      document.getElementById('pageInfo').innerText = `페이지 ${currentMatchPage+1} / ${Math.max(1, Math.ceil(matches.length/PAGE_SIZE))}`;
-    }
-
-    function renderMatchRecord(m, showAdminControls){
-      const div = document.createElement('div'); div.className='record';
-      const dateStr = fmtDate(m.date) || '';
-      const meta = document.createElement('div'); meta.className='meta';
-      meta.innerHTML = `<div class="small-muted">${dateStr}</div><div class="small-muted">맵: ${m.map || '-'}</div><div class="small-muted">스코어: ${m.score || '-'}</div>`;
-      if(showAdminControls){
-        const rmBtn = document.createElement('button'); rmBtn.className='btn ghost right'; rmBtn.innerText='삭제';
-        rmBtn.onclick = ()=>confirmDeleteMatch(m._id);
-        meta.appendChild(rmBtn);
-      }
-      div.appendChild(meta);
-
-      const teams = ['team1','team2'];
-      teams.forEach(t=>{
-        const team = document.createElement('div');
-        team.innerHTML = `<div style="font-weight:600;margin-top:8px">${t==='team1'?'팀 1':'팀 2'} ${m.winner===t?'<span style="color:var(--accent)"> (승리)</span>':''}</div>`;
-        (m[t]||[]).forEach(p=>{
-          const pr = document.createElement('div');
-          pr.style.display='flex'; pr.style.justifyContent='space-between'; pr.style.marginTop='6px';
-          pr.innerHTML = `<div><strong>${p.name || '-'}</strong> <span class="small-muted">(${p.riotid||''})</span></div>
-            <div class="small-muted">전투:${p.combat||0} / K:${p.kills||0} D:${p.deaths||0} A:${p.assists||0} HS:${p.hs || 0}%</div>`;
-          team.appendChild(pr);
-        });
-        div.appendChild(team);
-      });
-
-      return div;
-    }
-
-    // ---------- 관전: 전적 검색 ----------
-    function renderSpectateSearch(container){
-      const box = document.createElement('div'); box.className='card';
-      box.innerHTML = `<h2>전적 검색</h2>
-        <div class="input-group"><label class="small">이름 또는 Riot ID</label><input id="searchInput" class="input" placeholder="닉네임 또는 닉네임#태그" /></div>
-        <div style="display:flex;gap:8px"><button class="btn" id="searchBtn">검색</button><button class="btn ghost" id="searchClear">초기화</button></div>
-        <div id="searchResult" style="margin-top:12px"></div>`;
-      container.appendChild(box);
-      document.getElementById('searchBtn').onclick = ()=>doSearch();
-      document.getElementById('searchClear').onclick = ()=>{ document.getElementById('searchInput').value=''; document.getElementById('searchResult').innerHTML=''; };
-    }
-
-    function doSearch(){
-      const q = (document.getElementById('searchInput').value||'').trim();
-      if(!q) return alert('이름 또는 Riot ID를 입력하세요');
-      const results = [];
-      matches.forEach(m=>{
-        ['team1','team2'].forEach(t=>{
-          (m[t]||[]).forEach(p=>{
-            if(!p) return;
-            if((p.name && p.name.includes(q)) || (p.riotid && p.riotid.includes(q))) {
-              results.push({m,team:t,player:p});
-            }
-          });
-        });
-      });
-      renderSearchResult(q, results);
-    }
-
-    function renderSearchResult(q, results){
-      const out = document.getElementById('searchResult');
-      out.innerHTML = '';
-      if(results.length === 0){
-        out.innerHTML = `<div class="small-muted">검색결과 없음: ${q}</div>`;
-        return;
-      }
-
-      // compute stats
-      let totalKills=0, totalDeaths=0, totalAssists=0, totalCombat=0, totalHS=0, games=0, wins=0, losses=0;
-      let mapStats = {};
-      let mvpCount=0;
-      const userMatches = results.map(r=>({m:r.m, team:r.team, p:r.player}))
-        .sort((a,b)=> tsToMillis(a.m.date) - tsToMillis(b.m.date)); // chronological
-      userMatches.forEach(item=>{
-        const {m, team, p} = item;
-        totalKills += p.kills || 0;
-        totalDeaths += p.deaths || 0;
-        totalAssists += p.assists || 0;
-        totalCombat += p.combat || 0;
-        totalHS += (p.hs || 0);
-        games++;
-        const isWin = (m.winner === team);
-        if(isWin) wins++; else losses++;
-        if(!mapStats[m.map]) mapStats[m.map] = {wins:0,losses:0};
-        if(isWin) mapStats[m.map].wins++; else mapStats[m.map].losses++;
-        const allPlayers = [...(m.team1||[]), ...(m.team2||[])];
-        const top = allPlayers.reduce((best,pl)=> (pl && (pl.combat || 0) > (best.combat||-1) ? pl : best), {});
-        if(top && top.riotid === p.riotid) mvpCount++;
-      });
-
-      // streaks
-      let s = 0; let lastResult = null; let maxWinStreak = 0, maxLoseStreak = 0;
-      userMatches.forEach(item=>{
-        const isWin = (item.m.winner === item.team);
-        if(lastResult === null || lastResult === isWin) { s = s + 1; }
-        else { s = 1; }
-        if(isWin) maxWinStreak = Math.max(maxWinStreak, s);
-        else maxLoseStreak = Math.max(maxLoseStreak, s);
-        lastResult = isWin;
-      });
-
-      const kda = ((totalKills + totalAssists) / Math.max(1,totalDeaths)).toFixed(2);
-      const kd = (totalDeaths === 0 ? '∞' : (totalKills/totalDeaths).toFixed(2));
-      const avgCombat = (games === 0 ? 0 : (totalCombat / games).toFixed(1));
-      const avgHS = (games === 0 ? 0 : (totalHS / games).toFixed(1));
-      const winrate = ((wins / Math.max(1, games)) * 100).toFixed(1);
-
-      let summary = `<div class="card"><h3>${q}의 전적</h3>
-        <div class="small-muted">게임수: ${games} / 승: ${wins} / 패: ${losses} / 승률: ${winrate}%</div>
-        <div class="small-muted">킬:${totalKills} 데스:${totalDeaths} 어시:${totalAssists} / KDA:${kda} / K/D:${kd}</div>
-        <div class="small-muted">평균 전투점수: ${avgCombat} / 평균 헤드율: ${avgHS}% / MVP 횟수: ${mvpCount}</div>
-        <div class="small-muted">최대 연승: ${maxWinStreak} / 최대 연패: ${maxLoseStreak}</div>
-        <h4 style="margin-top:10px">맵별 통계</h4><ul>`;
-      Object.entries(mapStats).forEach(([mp,st])=>{
-        const total = st.wins + st.losses;
-        const mwr = total ? ((st.wins/total)*100).toFixed(1) : '0.0';
-        summary += `<li>${mp || '알수없음'}: ${mwr}% (${st.wins}승 ${st.losses}패)</li>`;
-      });
-      summary += `</ul></div>`;
-      out.innerHTML = summary;
-    }
-
-    // ---------- 관전: 티어표 ----------
-    function renderSpectateTiers(container){
-      computeAllStatsAndMMR();
-      const box = document.createElement('div'); box.className='card';
-      box.innerHTML = `<h2>티어표</h2><div id="tierTableWrap"></div>`;
-      container.appendChild(box);
-      updateTierTable();
-    }
-
-    let usersStats = {};
-
-    function computeAllStatsAndMMR(){
-      usersStats = {};
-      users.forEach(u => {
-        usersStats[u.riotid] = {
-          name: u.name, riotid: u.riotid,
-          games:0, wins:0, losses:0, kills:0, deaths:0, assists:0, combatSum:0, hsSum:0, mvp:0, matches:[]
-        };
-      });
-
-      matches.forEach(m=>{
-        const allPlayers = [...(m.team1||[]), ...(m.team2||[])].filter(Boolean);
-        const top = allPlayers.reduce((best,pl)=> (pl && (pl.combat || 0) > (best.combat||-1) ? pl : best), {});
-        ['team1','team2'].forEach(t=>{
-          (m[t]||[]).forEach(p=>{
-            if(!p || !p.riotid) return;
-            if(!usersStats[p.riotid]) usersStats[p.riotid] = {name:p.name, riotid:p.riotid, games:0,wins:0,losses:0,kills:0,deaths:0,assists:0,combatSum:0,hsSum:0,mvp:0,matches:[]};
-            const st = usersStats[p.riotid];
-            st.games++;
-            const isWin = (m.winner === t);
-            if(isWin) st.wins++; else st.losses++;
-            st.kills += p.kills || 0;
-            st.deaths += p.deaths || 0;
-            st.assists += p.assists || 0;
-            st.combatSum += p.combat || 0;
-            st.hsSum += (p.hs || 0);
-            if(top && top.riotid === p.riotid) st.mvp++;
-            st.matches.push({matchId:m._id, date:m.date, win:isWin, combat:p.combat || 0});
-          });
-        });
-      });
-
-      Object.values(usersStats).forEach(st=>{
-        st.avgCombat = st.games ? (st.combatSum / st.games) : 0;
-        st.avgHS = st.games ? (st.hsSum / st.games) : 0;
-        st.winrate = st.games ? (st.wins / st.games) : 0;
-        st.kda = st.deaths ? ((st.kills + st.assists) / st.deaths) : (st.kills + st.assists);
-        st.kd = st.deaths ? (st.kills / st.deaths) : st.kills;
-        st.matches.sort((a,b)=> tsToMillis(b.date) - tsToMillis(a.date));
-        let curStreak = 0;
-        if(st.matches.length>0){
-          const latestWin = st.matches[0].win;
-          for(let i=0;i<st.matches.length;i++){
-            if(st.matches[i].win === latestWin) curStreak++;
-            else break;
-          }
-        }
-        st.currentStreak = curStreak * (st.matches.length? (st.matches[0].win ? 1 : -1) : 0);
-
-        const mvpFactor = Math.min(10, st.mvp) * 0.5;
-        const combatSc = st.avgCombat;
-        const kdSc = Math.min(5, st.kd);
-        const hsSc = Math.min(100, st.avgHS);
-        const wrSc = st.winrate * 100;
-
-        const w_combat = 0.40, w_kd = 0.20, w_hs = 0.15, w_wr = 0.15, w_mvp=0.05;
-
-        const normalizedCombat = Math.min(100, (combatSc / 4));
-        const normalizedKD = Math.min(100, (kdSc / 5) * 100);
-        const normalizedHS = hsSc;
-        const normalizedWR = wrSc;
-        const normalizedMVP = Math.min(100, mvpFactor * 10);
-
-        let streakBonusPoints = 0;
-        if(st.currentStreak > 0){
-          if(st.currentStreak >= 5) streakBonusPoints = 15;
-          else if(st.currentStreak >= 3) streakBonusPoints = 6;
-        } else if(st.currentStreak < 0){
-          if(st.currentStreak <= -5) streakBonusPoints = -12;
-          else if(st.currentStreak <= -3) streakBonusPoints = -5;
-        }
-
-        const baseScore = (normalizedCombat*w_combat + normalizedKD*w_kd + normalizedHS*w_hs + normalizedWR*w_wr + normalizedMVP*w_mvp);
-        const mmrRaw = baseScore + streakBonusPoints;
-        const mmr = Math.round(800 + mmrRaw * 20);
-        st.mmr = mmr;
-        st.tier = mmrToTier(mmr);
-      });
-    }
-
-    function mmrToTier(mmr){
-      if(mmr < 900) return {name:'아이언', key:'iron', icon:'icon-iron'};
-      if(mmr < 1200) return {name:'브론즈', key:'bronze', icon:'icon-bronze'};
-      if(mmr < 1500) return {name:'실버', key:'silver', icon:'icon-silver'};
-      if(mmr < 1800) return {name:'골드', key:'gold', icon:'icon-gold'};
-      if(mmr < 2100) return {name:'플래티넘', key:'platinum', icon:'icon-platinum'};
-      if(mmr < 2400) return {name:'다이아', key:'diamond', icon:'icon-diamond'};
-      if(mmr < 2700) return {name:'이모탈', key:'immortal', icon:'icon-immortal'};
-      return {name:'레이디언트', key:'radiant', icon:'icon-radiant'};
-    }
-
-    function updateTierTable(){
-      computeAllStatsAndMMR();
-      const wrap = document.getElementById('tierTableWrap');
-      wrap.innerHTML = '';
-      const arr = Object.values(usersStats).sort((a,b)=> b.mmr - a.mmr);
-      let topHtml = `<div style="display:flex;justify-content:space-between;align-items:center"><div class="small-muted">총 유저: ${arr.length}</div></div>
-        <table><thead><tr><th>순위</th><th>닉네임</th><th>티어</th><th>MMR</th><th>승률</th><th>평균전투</th><th>K/D/A</th><th>MVP</th></tr></thead><tbody>`;
-      arr.forEach((u,i)=>{
-        topHtml += `<tr>
-          <td>${i+1}</td>
-          <td><strong>${u.name||u.riotid}</strong><div class="small-muted">${u.riotid}</div></td>
-          <td><span class="tier-badge"><span class="tier-icon ${u.tier.icon}">${u.tier.name.split('')[0]}</span>${u.tier.name}</span></td>
-          <td>${u.mmr}</td>
-          <td>${(u.winrate*100).toFixed(1)}%</td>
-          <td>${u.avgCombat.toFixed(1)}</td>
-          <td>${u.kills}/${u.deaths}/${u.assists}</td>
-          <td>${u.mvp}</td>
-        </tr>`;
-      });
-      topHtml += `</tbody></table>`;
-      wrap.innerHTML = topHtml;
-    }
-
-    // ---------- 관리자: 내전 입력 ----------
-    function renderAdminInput(container){
-      const box = document.createElement('div'); box.className='card';
-      box.innerHTML = `<h2>내전 입력</h2>
-        <div class="cols">
-          <div class="col" id="leftCol">
-            <div class="input-group"><label class="small">맵</label><input id="in_map" class="input" /></div>
-            <div class="input-group"><label class="small">스코어 (예: 13-11)</label><input id="in_score" class="input" /></div>
-            <div class="input-group"><label class="small">승리팀</label>
-              <select id="in_winner" class="input"><option value="">선택</option><option value="team1">팀1</option><option value="team2">팀2</option></select></div>
-            <div class="input-group"><label class="small">날짜/시간 (비워두면 현재)</label><input id="in_date" class="input" placeholder="YYYY-MM-DD HH:mm 또는 비워두기"/></div>
-            <div class="input-group"><label class="small">설명/비고</label><input id="in_note" class="input" /></div>
-            <div style="margin-top:8px"><button class="btn" id="btnAddMatch">저장</button></div>
-          </div>
-          <div class="col" id="rightCol">
-            <div><strong>팀 1</strong></div>
-            <div id="team1Inputs"></div>
-            <div style="height:8px"></div>
-            <div><strong>팀 2</strong></div>
-            <div id="team2Inputs"></div>
-          </div>
-        </div>`;
-      container.appendChild(box);
-      createAdminPlayerInputs('team1Inputs','team1');
-      createAdminPlayerInputs('team2Inputs','team2');
-      document.getElementById('btnAddMatch').onclick = async ()=>{ await adminSaveMatch(); };
-    }
-
-    function createAdminPlayerInputs(containerId, teamKey){
-      const container = document.getElementById(containerId);
-      container.innerHTML = '';
-      for(let i=0;i<5;i++){
-        const row = document.createElement('div'); row.className='player-row';
-        const sel = document.createElement('select'); sel.className = 'input'; sel.style.width='220px';
-        sel.id = `${teamKey}_user_${i}`;
-        const opt0 = document.createElement('option'); opt0.value=''; opt0.innerText='유저 선택';
-        sel.appendChild(opt0);
-        users.forEach(u=> {
-          const o = document.createElement('option'); o.value=u.riotid; o.innerText = `${u.name} (${u.riotid})`; sel.appendChild(o);
-        });
-        const inCombat = document.createElement('input'); inCombat.className='input small'; inCombat.id=`${teamKey}_combat_${i}`; inCombat.placeholder='전투점수';
-        const inKills = document.createElement('input'); inKills.className='input small'; inKills.id=`${teamKey}_kills_${i}`; inKills.placeholder='킬';
-        const inDeaths = document.createElement('input'); inDeaths.className='input small'; inDeaths.id=`${teamKey}_deaths_${i}`; inDeaths.placeholder='데스';
-        const inAssists = document.createElement('input'); inAssists.className='input small'; inAssists.id=`${teamKey}_assists_${i}`; inAssists.placeholder='어시';
-        const inHS = document.createElement('input'); inHS.className='input small'; inHS.id=`${teamKey}_hs_${i}`; inHS.placeholder='헤드율(%)';
-        row.appendChild(sel); row.appendChild(inCombat); row.appendChild(inKills); row.appendChild(inDeaths); row.appendChild(inAssists); row.appendChild(inHS);
-        container.appendChild(row);
-      }
-    }
-
-    async function adminSaveMatch(){
-      const map = document.getElementById('in_map').value.trim();
-      const score = document.getElementById('in_score').value.trim();
-      const winner = document.getElementById('in_winner').value;
-      const note = document.getElementById('in_note').value.trim();
-      let dateVal = document.getElementById('in_date').value.trim();
-      let dateObj = dateVal ? new Date(dateVal) : null;
-
-      function collect(teamKey){
-        const arr = [];
-        for(let i=0;i<5;i++){
-          const riotid = document.getElementById(`${teamKey}_user_${i}`).value || "";
-          const user = users.find(u=>u.riotid===riotid) || {};
-          const combat = parseFloat(document.getElementById(`${teamKey}_combat_${i}`).value || 0);
-          const kills = parseInt(document.getElementById(`${teamKey}_kills_${i}`).value || 0, 10);
-          const deaths = parseInt(document.getElementById(`${teamKey}_deaths_${i}`).value || 0, 10);
-          const assists = parseInt(document.getElementById(`${teamKey}_assists_${i}`).value || 0, 10);
-          const hs = parseFloat(document.getElementById(`${teamKey}_hs_${i}`).value || 0);
-          arr.push({
-            name: user.name || '',
-            riotid: riotid,
-            combat: isNaN(combat)?0:combat,
-            kills: isNaN(kills)?0:kills,
-            deaths: isNaN(deaths)?0:deaths,
-            assists: isNaN(assists)?0:assists,
-            hs: isNaN(hs)?0:hs
-          });
-        }
-        return arr;
-      }
-
-      const matchObj = {
-        map, score, winner, note,
-        team1: collect('team1'), team2: collect('team2'),
-        date: dateObj ? dateObj : serverTimestamp()
-      };
-      await addDoc(collection(db,'matches'), matchObj);
-      await loadMatches();
-      alert('내전이 저장되었습니다.');
-      renderView('admin_input');
-    }
-
-    // ---------- 관리자: 내전 관리 ----------
-    function renderAdminManage(container){
-      const box = document.createElement('div'); box.className='card';
-      box.innerHTML = `<h2>내전 관리</h2><div id="adminMatchesList"></div>`;
-      container.appendChild(box);
-      updateAdminMatchesList();
-    }
-
-    function updateAdminMatchesList(){
-      const out = document.getElementById('adminMatchesList');
-      out.innerHTML = '';
-      matches.forEach(m=>{
-        const row = renderMatchRecord(m, true);
-        out.appendChild(row);
-      });
-    }
-
-    // ---------- 관리자: 유저 관리 ----------
-    function renderAdminUsers(container){
-      const box = document.createElement('div'); box.className='card';
-      box.innerHTML = `<h2>유저 관리</h2>
-        <div style="display:flex;gap:8px"><div style="flex:1"><label class="small">이름</label><input id="regName" class="input"/></div>
-        <div style="flex:1"><label class="small">Riot ID (닉네임#태그)</label><input id="regRiot" class="input"/></div>
-        <div style="width:160px;align-self:end"><button class="btn" id="regBtn">등록</button></div></div>
-        <h3 style="margin-top:12px">등록된 유저</h3>
-        <div id="usersList"></div>`;
-      container.appendChild(box);
-      document.getElementById('regBtn').onclick = ()=>registerUserAdmin();
-      updateUsersList();
-    }
-
-    async function registerUserAdmin(){
-      const name = document.getElementById('regName').value.trim();
-      const riotid = document.getElementById('regRiot').value.trim();
-      if(!name || !riotid) return alert('이름과 Riot ID를 입력하세요');
-      await setDoc(doc(db,'users', riotid), {name, riotid});
-      await loadUsers();
-      alert('유저 등록 완료');
-      renderView('admin_users');
-    }
-
-    function updateUsersList(){
-      const wrap = document.getElementById('usersList');
-      wrap.innerHTML = '';
-      users.forEach(u=>{
-        const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.alignItems='center';
-        div.style.padding='6px 0';
-        div.innerHTML = `<div><strong>${u.name}</strong> <span class="small-muted">(${u.riotid})</span></div>`;
-        const btn = document.createElement('button'); btn.className='btn ghost'; btn.innerText='삭제';
-        btn.onclick = ()=>confirmDeleteUser(u.riotid);
-        div.appendChild(btn);
-        wrap.appendChild(div);
-      });
-    }
-
-    // ---------- 삭제 모달 처리 ----------
-    let pendingDelete = null; // {type: 'match'|'user', id:...}
-    function confirmDeleteMatch(matchId){
-      pendingDelete = {type:'match', id:matchId};
-      document.getElementById('confirmTitle').innerText = '내전 삭제 확인';
-      document.getElementById('confirmMsg').innerText = '이 내전을 완전히 삭제하시겠습니까? (Firestore에서 영구 삭제됩니다)';
-      const okBtn = document.getElementById('confirmOk');
-      okBtn.innerText = '네, 삭제합니다';
-      okBtn.className = 'btn danger';
-      okBtn.onclick = async ()=>{
-        if(pendingDelete && pendingDelete.type === 'match'){
-          await deleteDoc(doc(db,'matches', pendingDelete.id));
-        }
-        window.closeModal();
-        await loadMatches();
-        if(MODE === '관리자') renderView('admin_manage');
-        else renderView('spectate_records');
-      };
-      openModal();
-    }
-
-    function confirmDeleteUser(riotid){
-      pendingDelete = {type:'user', id:riotid};
-      document.getElementById('confirmTitle').innerText = '유저 삭제 확인';
-      document.getElementById('confirmMsg').innerText = `${riotid} 을(를) 삭제하시겠습니까? 이 작업은 복구되지 않습니다.`;
-      const okBtn = document.getElementById('confirmOk');
-      okBtn.innerText = '네, 삭제합니다';
-      okBtn.className = 'btn danger';
-      okBtn.onclick = async ()=>{
-        if(pendingDelete && pendingDelete.type === 'user'){
-          await deleteDoc(doc(db,'users', pendingDelete.id));
-        }
-        window.closeModal();
-        await loadUsers();
-        if(MODE === '관리자') renderView('admin_users');
-        else renderView('spectate_records');
-      };
-      openModal();
-    }
-
-    // ---------- 초기 호출: 로드해두기 ----------
-    (async ()=>{
-      await loadUsers();
-      await loadMatches();
-      // 보너스 안전장치: 혹시라도 보이는 상태면 닫기
-      window.closeModal();
-    })();
+    (async()=>{await loadUsers();await loadMatches();})();
   </script>
 </body>
 </html>
