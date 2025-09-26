@@ -14,11 +14,15 @@
     body { background:#111; color:#eee; }
     .nav-tabs .nav-link.active { background:#222; color:#0ff; font-weight:bold; }
     .table { color:#ddd; }
-    .card { background:#1a1a1a; border:1px solid #333; }
+    .table thead { background:#222; }
+    .table-striped tbody tr:nth-of-type(odd) { background:#1a1a1a; }
+    .card { background:#1a1a1a; border:1px solid #333; cursor:pointer; }
+    .card:hover { border-color:#0ff; }
     .page-link { background:#222; color:#0ff; border:1px solid #333; }
     .page-item.active .page-link { background:#0ff; color:#000; }
     .modal-content { background:#1a1a1a; color:#eee; }
-    pre { background:#222; padding:10px; border-radius:5px; color:#0f0; }
+    .badge-win { background:#28a745; }
+    .badge-lose { background:#dc3545; }
   </style>
 </head>
 <body>
@@ -79,10 +83,10 @@
     <!-- 티어표 -->
     <div class="tab-pane fade" id="tierTab">
       <h4>티어표</h4>
-      <table class="table table-bordered">
+      <table class="table table-bordered table-striped">
         <thead>
           <tr>
-            <th>순위</th><th>닉네임</th><th>MMR</th><th>총 게임</th><th>승</th><th>패</th><th>승률</th>
+            <th>순위</th><th>닉네임</th><th>티어</th><th>MMR</th><th>총 게임</th><th>승</th><th>패</th><th>승률</th>
           </tr>
         </thead>
         <tbody id="tierTable"></tbody>
@@ -127,49 +131,69 @@ MVP: 최근 10판 중 1개당 +2, 최대 +20
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
+  // 티어 구간 매핑
+  const tiers = [
+    "아이언1","아이언2","아이언3","브론즈1","브론즈2","브론즈3",
+    "실버1","실버2","실버3","골드1","골드2","골드3",
+    "플래티넘1","플래티넘2","플래티넘3","다이아1","다이아2","다이아3",
+    "이모탈1","이모탈2","이모탈3","레디언트"
+  ];
+  function getTier(mmr){
+    let idx=Math.floor(mmr/100)-9; // 1000=골드2
+    if(idx<0) idx=0;
+    if(idx>=tiers.length) idx=tiers.length-1;
+    return tiers[idx];
+  }
+
   // --- 전적 파싱 ---
   function parseMatch(raw){
-    const lines=raw.split("\n").map(l=>l.trim()).filter(l=>l);
-    let players=[];
-    for(let i=0;i<lines.length;i+=11){
-      let p={
-        agent:lines[i]||"",
-        name:lines[i+1]||"",
-        tierRank:lines[i+2]||"",
-        tier:lines[i+3]||"",
-        rankText:lines[i+5]||"",
-        kda:lines[i+6]||"",
-        ratio:lines[i+7]||"",
-        acs:lines[i+8]||"",
-        adr:lines[i+9]||"",
-        dd:lines[i+10]?.split("\t")[1]||"",
-        hs:lines[i+10]?.split("\t")[2]||"",
-        fk:lines[i+10]?.split("\t")[3]||"",
-        fd:lines[i+10]?.split("\t")[4]||"",
-        mk:lines[i+10]?.split("\t")[5]||""
-      };
-      if(p.name) players.push(p);
+    const blocks=raw.split(/승리적군/);
+    const team1Text=blocks[0].trim().split("\n").map(l=>l.trim()).filter(l=>l);
+    const team2Text=blocks[1].trim().split("\n").map(l=>l.trim()).filter(l=>l);
+
+    function parseTeam(arr){
+      let players=[];
+      for(let i=0;i<arr.length;i+=11){
+        players.push({
+          agent:arr[i]||"",
+          name:arr[i+1]||"",
+          tierRank:arr[i+2]||"",
+          tier:arr[i+3]||"",
+          rankText:arr[i+5]||"",
+          kda:arr[i+6]||"",
+          ratio:arr[i+7]||"",
+          acs:arr[i+8]||"",
+          adr:arr[i+9]||"",
+          dd:arr[i+10]?.split("\t")[1]||"",
+          hs:arr[i+10]?.split("\t")[2]||"",
+          fk:arr[i+10]?.split("\t")[3]||"",
+          fd:arr[i+10]?.split("\t")[4]||"",
+          mk:arr[i+10]?.split("\t")[5]||""
+        });
+      }
+      return players;
     }
-    return players;
+    return {team1:parseTeam(team1Text), team2:parseTeam(team2Text)};
   }
 
   // --- 저장 ---
   document.getElementById("matchForm").addEventListener("submit", async (e)=>{
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target).entries());
-    const players=parseMatch(data.raw);
+    const parsed=parseMatch(data.raw);
     await db.collection("matches").add({
       map:data.map,
       score:data.score,
       date:data.date,
-      players:players,
+      team1:parsed.team1,
+      team2:parsed.team2,
       created:firebase.firestore.FieldValue.serverTimestamp()
     });
     alert("저장 완료!");
     e.target.reset();
   });
 
-  // --- 페이지네이션 ---
+  // --- 목록/페이지네이션 ---
   let currentPage=1, pageSize=10, totalDocs=0;
   async function loadPage(page){
     currentPage=page;
@@ -215,20 +239,28 @@ MVP: 최근 10판 중 1개당 +2, 최대 +20
   // --- 상세 모달 ---
   function showDetail(m){
     let html=`<h5>${m.map} (${m.score}, ${m.date})</h5>`;
-    html+=`<table class="table table-bordered table-sm">
+    function renderTeam(players,label,isWin){
+      let badge=isWin?'<span class="badge badge-win">승리</span>':'<span class="badge badge-lose">패배</span>';
+      let out=`<h6>${label}팀 ${badge}</h6>
+      <table class="table table-bordered table-sm table-striped">
       <thead><tr>
         <th>요원</th><th>닉네임</th><th>티어</th><th>순위</th>
         <th>KDA</th><th>비율</th><th>ACS</th><th>ADR</th><th>DDΔ</th>
         <th>HS%</th><th>FK</th><th>FD</th><th>MK</th>
       </tr></thead><tbody>`;
-    m.players.forEach(p=>{
-      html+=`<tr>
-        <td>${p.agent}</td><td>${p.name}</td><td>${p.tierRank}</td><td>${p.rankText}</td>
-        <td>${p.kda}</td><td>${p.ratio}</td><td>${p.acs}</td><td>${p.adr}</td><td>${p.dd}</td>
-        <td>${p.hs}</td><td>${p.fk}</td><td>${p.fd}</td><td>${p.mk}</td>
-      </tr>`;
-    });
-    html+="</tbody></table>";
+      players.forEach(p=>{
+        out+=`<tr>
+          <td>${p.agent}</td><td>${p.name}</td><td>${p.tierRank}</td><td>${p.rankText}</td>
+          <td>${p.kda}</td><td>${p.ratio}</td><td>${p.acs}</td><td>${p.adr}</td><td>${p.dd}</td>
+          <td>${p.hs}</td><td>${p.fk}</td><td>${p.fd}</td><td>${p.mk}</td>
+        </tr>`;
+      });
+      out+="</tbody></table>";
+      return out;
+    }
+    let [sA,sB]=m.score.split("-").map(x=>+x);
+    html+=renderTeam(m.team1,"팀 A",sA>sB);
+    html+=renderTeam(m.team2,"팀 B",sB>sA);
     document.getElementById("detailContent").innerHTML=html;
     new bootstrap.Modal(document.getElementById("detailModal")).show();
   }
@@ -238,46 +270,41 @@ MVP: 최근 10판 중 1개당 +2, 최대 +20
     const q=document.getElementById("searchUser").value.trim();
     if(!q)return;
     const snaps=await db.collection("matches").get();
-    let games=0,wins=0,kills=0,deaths=0,assists=0,acs=0,adr=0,dd=0,hs=0;
+    let games=0,wins=0,k=0,d=0,a=0,acs=0,adr=0,dd=0,hs=0;
     let mapStats={},agentStats={},teamStats={};
     snaps.forEach(doc=>{
       const m=doc.data();
-      m.players.forEach(p=>{
-        if(p.name===q){
-          games++;
-          let [k,d,a]=p.kda.split('/').map(x=>+x||0);
-          kills+=k;deaths+=d;assists+=a;
-          acs+=+p.acs||0; adr+=+p.adr||0; dd+=(+p.dd||0); hs+=(parseInt(p.hs)||0);
-          // 맵별
-          if(!mapStats[m.map])mapStats[m.map]={g:0,w:0};
-          mapStats[m.map].g++;
-          // 요원별
-          if(!agentStats[p.agent])agentStats[p.agent]={g:0,w:0};
-          agentStats[p.agent].g++;
-          // 승패
-          let [sA,sB]=m.score.split("-").map(x=>+x);
-          let teamA=m.players.slice(0,5); // 단순: 첫 5명=팀A
-          let userTeam=teamA.find(x=>x.name===q)?"A":"B";
-          let win=(userTeam==="A"?sA>sB:sB>sA);
-          if(win){wins++;mapStats[m.map].w++;agentStats[p.agent].w++;}
-          // 팀별 승률
-          m.players.forEach(o=>{
-            if(o.name!==q){
-              if(!teamStats[o.name])teamStats[o.name]={same:0,sameW:0,opp:0,oppW:0};
-              if(teamA.find(x=>x.name===q)===!!teamA.find(x=>x.name===o.name)){
-                teamStats[o.name].same++; if(win)teamStats[o.name].sameW++;
-              }else{
-                teamStats[o.name].opp++; if(win)teamStats[o.name].oppW++;
+      let [sA,sB]=m.score.split("-").map(x=>+x);
+      function procTeam(team,isA){
+        team.forEach(p=>{
+          if(p.name===q){
+            games++;
+            let [kk,ddt,aa]=p.kda.split('/').map(x=>+x||0);
+            k+=kk; d+=ddt; a+=aa;
+            acs+=+p.acs||0; adr+=+p.adr||0; dd+=(+p.dd||0); hs+=(parseInt(p.hs)||0);
+            if(!mapStats[m.map])mapStats[m.map]={g:0,w:0};
+            mapStats[m.map].g++;
+            if(!agentStats[p.agent])agentStats[p.agent]={g:0,w:0};
+            agentStats[p.agent].g++;
+            let win=(isA? sA>sB:sB>sA);
+            if(win){wins++;mapStats[m.map].w++;agentStats[p.agent].w++;}
+            [...m.team1,...m.team2].forEach(o=>{
+              if(o.name!==q){
+                if(!teamStats[o.name])teamStats[o.name]={same:0,sameW:0,opp:0,oppW:0};
+                let same=( (isA && m.team1.includes(o)) || (!isA && m.team2.includes(o)) );
+                if(same){teamStats[o.name].same++;if(win)teamStats[o.name].sameW++;}
+                else {teamStats[o.name].opp++;if(win)teamStats[o.name].oppW++;}
               }
-            }
-          });
-        }
-      });
+            });
+          }
+        });
+      }
+      procTeam(m.team1,true); procTeam(m.team2,false);
     });
     let html=`<h5>${q} 전적 요약</h5>
-    <p>총 게임:${games}, 승:${wins}, 패:${games-wins}, 승률:${((wins/games*100)||0).toFixed(1)}%</p>
-    <p>K/D/A 합계:${kills}/${deaths}/${assists}</p>
-    <p>평균 ACS:${(acs/games).toFixed(1)} / ADR:${(adr/games).toFixed(1)} / DDΔ:${(dd/games).toFixed(1)} / HS:${(hs/games).toFixed(1)}%</p>`;
+      <p>총 게임:${games}, 승:${wins}, 패:${games-wins}, 승률:${((wins/games*100)||0).toFixed(1)}%</p>
+      <p>K/D/A 합계:${k}/${d}/${a}</p>
+      <p>평균 ACS:${(acs/games).toFixed(1)} / ADR:${(adr/games).toFixed(1)} / DDΔ:${(dd/games).toFixed(1)} / HS:${(hs/games).toFixed(1)}%</p>`;
     html+="<h6>맵별 승률</h6><ul>";
     for(let m in mapStats){let ms=mapStats[m];html+=`<li>${m}: ${ms.w}/${ms.g} (${(ms.w/ms.g*100).toFixed(1)}%)</li>`;}
     html+="</ul><h6>요원별 승률</h6><ul>";
@@ -292,34 +319,26 @@ MVP: 최근 10판 중 1개당 +2, 최대 +20
   db.collection("matches").onSnapshot(snapshot=>{
     let stats={};
     snapshot.forEach(doc=>{
-      const m=doc.data();
-      let [sA,sB]=m.score.split("-").map(x=>+x);
-      let teamA=m.players.slice(0,5); // 단순
-      m.players.forEach((p,idx)=>{
-        if(!stats[p.name])stats[p.name]={games:0,wins:0,mmr:1000,recent:[]};
-        stats[p.name].games++;
-        let win=(idx<5? sA>sB : sB>sA);
-        if(win)stats[p.name].wins++;
-        stats[p.name].recent.push({win,acs:+p.acs||0,mvp:p.rankText==="MVP"});
+      const m=doc.data(); let [sA,sB]=m.score.split("-").map(x=>+x);
+      m.team1.forEach(p=>{
+        if(!stats[p.name])stats[p.name]={games:0,wins:0,mmr:1000};
+        stats[p.name].games++; if(sA>sB)stats[p.name].wins++;
+        stats[p.name].mmr+=(sA>sB?25:-20);
+      });
+      m.team2.forEach(p=>{
+        if(!stats[p.name])stats[p.name]={games:0,wins:0,mmr:1000};
+        stats[p.name].games++; if(sB>sA)stats[p.name].wins++;
+        stats[p.name].mmr+=(sB>sA?25:-20);
       });
     });
-    // MMR 계산
-    for(let n in stats){
-      let u=stats[n]; let mmr=1000;
-      u.recent.slice(-10).forEach(r=>{
-        mmr+=(r.win?25:-20);
-        if(r.acs>200)mmr+=5; else if(r.acs<150)mmr-=5;
-        if(r.mvp)mmr+=2;
-      });
-      stats[n].mmr=mmr;
-    }
     let arr=Object.entries(stats).map(([name,v])=>({...v,name}));
     arr.sort((a,b)=>b.mmr-a.mmr);
     const tbody=document.getElementById("tierTable");
     tbody.innerHTML="";
     arr.forEach((u,i)=>{
+      let tier=getTier(u.mmr);
       tbody.innerHTML+=`<tr>
-        <td>${i+1}</td><td>${u.name}</td><td>${u.mmr}</td>
+        <td>${i+1}</td><td>${u.name}</td><td>${tier}</td><td>${u.mmr}</td>
         <td>${u.games}</td><td>${u.wins}</td><td>${u.games-u.wins}</td>
         <td>${((u.wins/u.games*100)||0).toFixed(1)}%</td>
       </tr>`;
