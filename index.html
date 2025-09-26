@@ -7,24 +7,24 @@
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <!-- UI 라이브러리 -->
+  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <style>
     body { background:#111; color:#eee; }
     .nav-tabs .nav-link.active { background:#222; color:#0ff; font-weight:bold; }
     .table { color:#ddd; }
-    .agent-img { width:40px; height:40px; border-radius:5px; margin-right:5px; }
+    .card { background:#1a1a1a; border:1px solid #333; }
     .page-link { background:#222; color:#0ff; border:1px solid #333; }
     .page-item.active .page-link { background:#0ff; color:#000; }
-    .card { background:#1a1a1a; border:1px solid #333; }
     .stat-box { background:#222; padding:10px; border-radius:5px; margin:5px; }
+    pre { background:#222; padding:10px; border-radius:5px; color:#0f0; }
   </style>
 </head>
 <body>
 <div class="container py-4">
   <h1 class="text-center mb-4">발로란트 내전 전적 시스템</h1>
-  <ul class="nav nav-tabs justify-content-center mb-4" id="mainTabs">
+  <ul class="nav nav-tabs justify-content-center mb-4">
     <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#inputTab">내전 정보 입력</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#recordTab">내전 전적</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#searchTab">전적 검색</a></li>
@@ -52,10 +52,12 @@
             </div>
           </div>
           <hr>
-          <div id="playersArea">
-            <!-- 플레이어 입력 필드 동적 추가 -->
-          </div>
-          <button type="button" class="btn btn-secondary mt-2" onclick="addPlayer()">플레이어 추가</button>
+          <label class="form-label">전적 원본 텍스트 ①</label>
+          <textarea class="form-control mb-2" rows="6" name="raw1" placeholder="전적 복붙"></textarea>
+          <label class="form-label">전적 원본 텍스트 ②</label>
+          <textarea class="form-control mb-2" rows="6" name="raw2" placeholder="전적 복붙"></textarea>
+          <label class="form-label">전적 원본 텍스트 ③</label>
+          <textarea class="form-control mb-2" rows="6" name="raw3" placeholder="전적 복붙"></textarea>
           <button type="submit" class="btn btn-primary mt-2">저장</button>
         </form>
       </div>
@@ -65,9 +67,6 @@
     <div class="tab-pane fade" id="recordTab">
       <h4>내전 전적</h4>
       <div id="recordList"></div>
-      <nav class="d-flex justify-content-center mt-3">
-        <ul class="pagination" id="pagination"></ul>
-      </nav>
     </div>
 
     <!-- 전적 검색 -->
@@ -90,13 +89,15 @@
         <tbody id="tierTable"></tbody>
       </table>
       <h5 class="mt-4">MMR 변동 가중치</h5>
-      <ul>
-        <li>기본: 승리 +25, 패배 -20</li>
-        <li>ACS 상위 시 보너스, 하위 시 페널티</li>
-        <li>FK, FD, MK, 헤드율 반영</li>
-        <li>최근 10판 MVP/연승 시 추가 보너스</li>
-        <li>연패 + 낮은 ACS → 추가 감점 (2단 하락 없음)</li>
-      </ul>
+      <pre>
+기본: 승리 +25, 패배 -20
+ACS: 상위 30% +5, 하위 30% -5
+KDA: ±0~5
+FK/FD/MK 보정
+헤드율: 평균 이상 +3, 이하 -3
+연승/연패 보정
+MVP 보정
+      </pre>
     </div>
   </div>
 </div>
@@ -114,54 +115,22 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
-  // --- 플레이어 입력 ---
-  let playerCount = 0;
-  function addPlayer() {
-    playerCount++;
-    const div = document.createElement('div');
-    div.className = "card p-2 mt-2";
-    div.innerHTML = `
-      <h6>플레이어 ${playerCount}</h6>
-      <div class="row g-2">
-        <div class="col-md-2"><input class="form-control" placeholder="요원" name="agent${playerCount}" required></div>
-        <div class="col-md-3"><input class="form-control" placeholder="닉네임#태그" name="name${playerCount}" required></div>
-        <div class="col-md-2"><input class="form-control" placeholder="티어" name="tier${playerCount}"></div>
-        <div class="col-md-2"><input class="form-control" placeholder="KDA (예: 24/23/8)" name="kda${playerCount}"></div>
-        <div class="col-md-3"><input class="form-control" placeholder="ACS / ADR / HS%" name="stat${playerCount}"></div>
-      </div>`;
-    document.getElementById("playersArea").appendChild(div);
-  }
-
-  // --- 내전 저장 ---
+  // 저장
   document.getElementById("matchForm").addEventListener("submit", async (e)=>{
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target).entries());
-    let players=[];
-    for(let i=1;i<=playerCount;i++){
-      if(data[`name${i}`]){
-        players.push({
-          agent:data[`agent${i}`],
-          name:data[`name${i}`],
-          tier:data[`tier${i}`],
-          kda:data[`kda${i}`],
-          stat:data[`stat${i}`]
-        });
-      }
-    }
     await db.collection("matches").add({
       map:data.map,
       score:data.score,
       date:data.date,
-      players:players,
+      raws:[data.raw1,data.raw2,data.raw3],
       created:firebase.firestore.FieldValue.serverTimestamp()
     });
     alert("저장 완료!");
     e.target.reset();
-    document.getElementById("playersArea").innerHTML="";
-    playerCount=0;
   });
 
-  // --- 내전 전적 목록 (간단 구현: 최신 10개만 표시) ---
+  // 내전 전적 목록
   db.collection("matches").orderBy("created","desc").limit(10)
     .onSnapshot(snapshot=>{
       const list=document.getElementById("recordList");
@@ -170,61 +139,44 @@
         const m=doc.data();
         const div=document.createElement("div");
         div.className="card p-2 mb-2";
-        div.innerHTML=`<b>${m.map}</b> - ${m.score} (${m.date})`;
-        div.onclick=()=>showMatchDetail(m);
+        div.innerHTML=`<b>${m.map}</b> - ${m.score} (${m.date})<br>
+          <pre>${m.raws.join("\n\n")}</pre>`;
         list.appendChild(div);
       });
     });
 
-  function showMatchDetail(m){
-    let html=`<h5>${m.map} (${m.score})</h5><div class="row">`;
-    m.players.forEach(p=>{
-      html+=`<div class="col-md-6 stat-box">
-        <b><img src="https://api.dicebear.com/7.x/icons/svg?seed=${p.agent}" class="agent-img">${p.agent}</b><br>
-        ${p.name} [${p.tier}]<br>
-        KDA: ${p.kda}<br>
-        Stat: ${p.stat}
-      </div>`;
-    });
-    html+="</div>";
-    document.getElementById("recordList").innerHTML=html;
-  }
-
-  // --- 전적 검색 (기본 틀) ---
+  // 전적 검색 (간단)
   async function searchStats(){
     const q=document.getElementById("searchUser").value.trim();
     if(!q)return;
     const snaps=await db.collection("matches").get();
-    let games=0,wins=0,kills=0,deaths=0,assists=0;
+    let games=0,wins=0;
     snaps.forEach(doc=>{
       const m=doc.data();
-      m.players.forEach(p=>{
-        if(p.name===q){
+      m.raws.forEach(r=>{
+        if(r.includes(q)){
           games++;
-          let parts=p.kda.split('/');
-          kills+=parseInt(parts[0]||0);
-          deaths+=parseInt(parts[1]||0);
-          assists+=parseInt(parts[2]||0);
+          if(r.includes("승리적군") && r.includes(q)) wins++; // 단순 판별
         }
       });
     });
-    let html=`<h5>${q} 전적 요약</h5>
-      <p>총 게임: ${games}</p>
-      <p>K/D/A: ${kills}/${deaths}/${assists}</p>`;
-    document.getElementById("searchResult").innerHTML=html;
+    document.getElementById("searchResult").innerHTML=
+      `<h5>${q}</h5><p>총 게임: ${games}, 승:${wins}, 패:${games-wins}</p>`;
   }
 
-  // --- 티어표 (단순 예시) ---
+  // 티어표 (기본)
   db.collection("matches").onSnapshot(snapshot=>{
     let stats={};
     snapshot.forEach(doc=>{
       const m=doc.data();
-      m.players.forEach(p=>{
-        if(!stats[p.name])stats[p.name]={games:0,wins:0,kills:0,deaths:0,mmr:1000};
-        stats[p.name].games++;
-        let kd=p.kda.split('/');
-        stats[p.name].kills+=(+kd[0]||0);
-        stats[p.name].deaths+=(+kd[1]||0);
+      m.raws.forEach(r=>{
+        const lines=r.split("\n").map(l=>l.trim()).filter(l=>l.includes("#"));
+        for(let l of lines){
+          const name=l;
+          if(!stats[name])stats[name]={games:0,wins:0,mmr:1000};
+          stats[name].games++;
+          if(r.includes("승리적군") && r.includes(name)) stats[name].wins++;
+        }
       });
     });
     let arr=Object.entries(stats).map(([name,v])=>({...v,name}));
