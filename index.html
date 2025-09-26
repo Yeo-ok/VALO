@@ -1,132 +1,245 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <title>발로란트 내전 플랫폼</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8">
+  <title>발로란트 내전 전적 시스템</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <!-- UI 라이브러리 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <style>
-    :root{
-      --bg:#0f1113; --card:#151618; --accent:#ff4655; --muted:#9aa3ad; --text:#eee;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(180deg,#0b0c0d 0%,#0f1113 100%);color:var(--text);-webkit-font-smoothing:antialiased;padding:24px}
-    .wrap{max-width:1200px;margin:0 auto}
-    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
-    h1{margin:0;color:var(--accent);font-size:20px}
-    .top-right{margin-left:auto;display:flex;gap:8px;align-items:center}
-    input,select,button,textarea{font-family:inherit}
-    .card{background:var(--card);padding:16px;border-radius:10px;border:1px solid rgba(255,255,255,0.04)}
-    .tabs{display:flex;gap:8px;margin:12px 0}
-    .tab-btn{padding:8px 12px;border-radius:8px;background:transparent;border:1px solid transparent;color:var(--muted);cursor:pointer}
-    .tab-btn.active{background:rgba(255,255,255,0.03);color:var(--text);border-color:rgba(255,255,255,0.04)}
-    .hidden{display:none!important}
-    .cols{display:flex;gap:16px}
-    .col{flex:1}
-    .input-group{margin:8px 0;position:relative}
-    .input{width:100%;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:#0d0e10;color:var(--text)}
-    textarea.input{resize:vertical}
-    label.small{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
-    .player-row{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
-    .player-row .input{width:140px}
-    .player-row .input.small{width:80px}
-    .btn{padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:white;cursor:pointer}
-    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
-    .tier-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:linear-gradient(90deg,rgba(255,255,255,0.02),transparent)}
-    .tier-icon{width:36px;height:20px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#111;font-size:12px}
-    .icon-iron{background:#8a8a8a;color:#fff}
-    .icon-bronze{background:#a76a31;color:#fff}
-    .icon-silver{background:#aeb8c0;color:#111}
-    .icon-gold{background:#f0c84a;color:#111}
-    .icon-platinum{background:#57d6c8;color:#111}
-    .icon-diamond{background:#5a8ee6;color:#fff}
-    .icon-immortal{background:#7a4bd6;color:#fff}
-    .icon-radiant{background:linear-gradient(90deg,#ffd36a,#ff6b8a);color:#111}
-    .footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+    body { background:#111; color:#eee; }
+    .nav-tabs .nav-link.active { background:#222; color:#0ff; font-weight:bold; }
+    .table { color:#ddd; }
+    .agent-img { width:40px; height:40px; border-radius:5px; margin-right:5px; }
+    .page-link { background:#222; color:#0ff; border:1px solid #333; }
+    .page-item.active .page-link { background:#0ff; color:#000; }
+    .card { background:#1a1a1a; border:1px solid #333; }
+    .stat-box { background:#222; padding:10px; border-radius:5px; margin:5px; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>발로란트 내전 플랫폼</h1>
-      <div class="top-right"><div id="modeLabel" class="small-muted">모드: 로그인</div></div>
-    </header>
+<div class="container py-4">
+  <h1 class="text-center mb-4">발로란트 내전 전적 시스템</h1>
+  <ul class="nav nav-tabs justify-content-center mb-4" id="mainTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#inputTab">내전 정보 입력</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#recordTab">내전 전적</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#searchTab">전적 검색</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tierTab">티어표</a></li>
+  </ul>
 
-    <!-- LOGIN -->
-    <div id="loginScreen" class="card">
-      <h2>모드 선택</h2>
-      <div class="input-group">
-        <label class="small">모드 입력 (관전 또는 관리자)</label>
-        <input id="modeInput" class="input" type="text" placeholder="예: 관전 또는 관리자"/>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn" onclick="login()">입장</button>
-        <button class="btn ghost" onclick="autoSpectate()">관전으로 바로 입장</button>
+  <div class="tab-content">
+    <!-- 내전 정보 입력 -->
+    <div class="tab-pane fade show active" id="inputTab">
+      <div class="card p-3">
+        <h4>내전 정보 입력</h4>
+        <form id="matchForm">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">맵 이름</label>
+              <input type="text" class="form-control" name="map" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">스코어</label>
+              <input type="text" class="form-control" name="score" placeholder="예: 13-11" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">날짜</label>
+              <input type="date" class="form-control" name="date" required>
+            </div>
+          </div>
+          <hr>
+          <div id="playersArea">
+            <!-- 플레이어 입력 필드 동적 추가 -->
+          </div>
+          <button type="button" class="btn btn-secondary mt-2" onclick="addPlayer()">플레이어 추가</button>
+          <button type="submit" class="btn btn-primary mt-2">저장</button>
+        </form>
       </div>
     </div>
 
-    <!-- MAIN AREA -->
-    <div id="mainArea" class="hidden">
-      <div id="globalTabs" class="tabs card" style="margin-top:12px;padding:8px"></div>
-      <div id="contentArea" style="margin-top:12px;"></div>
+    <!-- 내전 전적 -->
+    <div class="tab-pane fade" id="recordTab">
+      <h4>내전 전적</h4>
+      <div id="recordList"></div>
+      <nav class="d-flex justify-content-center mt-3">
+        <ul class="pagination" id="pagination"></ul>
+      </nav>
     </div>
-    <div class="footer">관리자 기능 사용 시 삭제는 Firebase에서 완전 삭제됩니다.</div>
+
+    <!-- 전적 검색 -->
+    <div class="tab-pane fade" id="searchTab">
+      <h4>전적 검색</h4>
+      <input type="text" id="searchUser" class="form-control mb-2" placeholder="닉네임#태그 입력">
+      <button class="btn btn-info mb-3" onclick="searchStats()">검색</button>
+      <div id="searchResult"></div>
+    </div>
+
+    <!-- 티어표 -->
+    <div class="tab-pane fade" id="tierTab">
+      <h4>티어표</h4>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>순위</th><th>닉네임</th><th>티어</th><th>MMR</th><th>총 게임</th><th>승</th><th>패</th><th>승률</th>
+          </tr>
+        </thead>
+        <tbody id="tierTable"></tbody>
+      </table>
+      <h5 class="mt-4">MMR 변동 가중치</h5>
+      <ul>
+        <li>기본: 승리 +25, 패배 -20</li>
+        <li>ACS 상위 시 보너스, 하위 시 페널티</li>
+        <li>FK, FD, MK, 헤드율 반영</li>
+        <li>최근 10판 MVP/연승 시 추가 보너스</li>
+        <li>연패 + 낮은 ACS → 추가 감점 (2단 하락 없음)</li>
+      </ul>
+    </div>
   </div>
+</div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore, collection, doc, setDoc, addDoc, getDocs, deleteDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+<script>
+  // Firebase Init
+  const firebaseConfig = {
+    apiKey:"AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",
+    authDomain:"valo-cf536.firebaseapp.com",
+    projectId:"valo-cf536",
+    storageBucket:"valo-cf536.appspot.com",
+    messagingSenderId:"463328045633",
+    appId:"1:463328045633:web:7785fd381903d8cee874c0"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-    const firebaseConfig={apiKey:"AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",authDomain:"valo-cf536.firebaseapp.com",projectId:"valo-cf536",storageBucket:"valo-cf536.appspot.com",messagingSenderId:"463328045633",appId:"1:463328045633:web:7785fd381903d8cee874c0"};
-    const app=initializeApp(firebaseConfig);const db=getFirestore(app);
+  // --- 플레이어 입력 ---
+  let playerCount = 0;
+  function addPlayer() {
+    playerCount++;
+    const div = document.createElement('div');
+    div.className = "card p-2 mt-2";
+    div.innerHTML = `
+      <h6>플레이어 ${playerCount}</h6>
+      <div class="row g-2">
+        <div class="col-md-2"><input class="form-control" placeholder="요원" name="agent${playerCount}" required></div>
+        <div class="col-md-3"><input class="form-control" placeholder="닉네임#태그" name="name${playerCount}" required></div>
+        <div class="col-md-2"><input class="form-control" placeholder="티어" name="tier${playerCount}"></div>
+        <div class="col-md-2"><input class="form-control" placeholder="KDA (예: 24/23/8)" name="kda${playerCount}"></div>
+        <div class="col-md-3"><input class="form-control" placeholder="ACS / ADR / HS%" name="stat${playerCount}"></div>
+      </div>`;
+    document.getElementById("playersArea").appendChild(div);
+  }
 
-    let MODE=null,users=[],matches=[],currentMatchPage=0,PAGE_SIZE=5;
+  // --- 내전 저장 ---
+  document.getElementById("matchForm").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    let players=[];
+    for(let i=1;i<=playerCount;i++){
+      if(data[`name${i}`]){
+        players.push({
+          agent:data[`agent${i}`],
+          name:data[`name${i}`],
+          tier:data[`tier${i}`],
+          kda:data[`kda${i}`],
+          stat:data[`stat${i}`]
+        });
+      }
+    }
+    await db.collection("matches").add({
+      map:data.map,
+      score:data.score,
+      date:data.date,
+      players:players,
+      created:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alert("저장 완료!");
+    e.target.reset();
+    document.getElementById("playersArea").innerHTML="";
+    playerCount=0;
+  });
 
-    async function loadUsers(){users=[];const snap=await getDocs(collection(db,"users"));snap.forEach(s=>users.push(s.data()));}
-    async function loadMatches(){matches=[];const snap=await getDocs(query(collection(db,"matches"),orderBy("date","desc")));snap.forEach(s=>{let d=s.data();d._id=s.id;matches.push(d);});}
+  // --- 내전 전적 목록 (간단 구현: 최신 10개만 표시) ---
+  db.collection("matches").orderBy("created","desc").limit(10)
+    .onSnapshot(snapshot=>{
+      const list=document.getElementById("recordList");
+      list.innerHTML="";
+      snapshot.forEach(doc=>{
+        const m=doc.data();
+        const div=document.createElement("div");
+        div.className="card p-2 mb-2";
+        div.innerHTML=`<b>${m.map}</b> - ${m.score} (${m.date})`;
+        div.onclick=()=>showMatchDetail(m);
+        list.appendChild(div);
+      });
+    });
 
-    window.login=async function(){const val=document.getElementById("modeInput").value.trim();if(val!=="관전"&&val!=="관리자")return alert("정확히 입력");MODE=val;document.getElementById("loginScreen").classList.add("hidden");document.getElementById("mainArea").classList.remove("hidden");document.getElementById("modeLabel").innerText=`모드: ${MODE}`;await loadUsers();await loadMatches();renderTopTabs();openDefaultTab();};
-    window.autoSpectate=async function(){document.getElementById("modeInput").value="관전";await window.login();};
+  function showMatchDetail(m){
+    let html=`<h5>${m.map} (${m.score})</h5><div class="row">`;
+    m.players.forEach(p=>{
+      html+=`<div class="col-md-6 stat-box">
+        <b><img src="https://api.dicebear.com/7.x/icons/svg?seed=${p.agent}" class="agent-img">${p.agent}</b><br>
+        ${p.name} [${p.tier}]<br>
+        KDA: ${p.kda}<br>
+        Stat: ${p.stat}
+      </div>`;
+    });
+    html+="</div>";
+    document.getElementById("recordList").innerHTML=html;
+  }
 
-    function renderTopTabs(){const c=document.getElementById("globalTabs");c.innerHTML="";if(MODE==="관전"){c.appendChild(tabBtn("내전 기록",()=>renderSpectateRecords()));c.appendChild(tabBtn("전적 검색",()=>renderSpectateSearch()));c.appendChild(tabBtn("티어표",()=>renderSpectateTiers()));}else{c.appendChild(tabBtn("내전 입력",()=>renderAdminInput()));c.appendChild(tabBtn("내전 관리",()=>renderAdminManage()));c.appendChild(tabBtn("유저 관리",()=>renderAdminUsers()));c.appendChild(tabBtn("전적 검색",()=>renderSpectateSearch()));}}
-    function tabBtn(text,onClick){const b=document.createElement("button");b.className="tab-btn";b.innerText=text;b.onclick=()=>{document.querySelectorAll(".tab-btn").forEach(x=>x.classList.remove("active"));b.classList.add("active");onClick();};return b;}
-    function openDefaultTab(){const f=document.querySelector(".tab-btn");if(f)f.click();}
+  // --- 전적 검색 (기본 틀) ---
+  async function searchStats(){
+    const q=document.getElementById("searchUser").value.trim();
+    if(!q)return;
+    const snaps=await db.collection("matches").get();
+    let games=0,wins=0,kills=0,deaths=0,assists=0;
+    snaps.forEach(doc=>{
+      const m=doc.data();
+      m.players.forEach(p=>{
+        if(p.name===q){
+          games++;
+          let parts=p.kda.split('/');
+          kills+=parseInt(parts[0]||0);
+          deaths+=parseInt(parts[1]||0);
+          assists+=parseInt(parts[2]||0);
+        }
+      });
+    });
+    let html=`<h5>${q} 전적 요약</h5>
+      <p>총 게임: ${games}</p>
+      <p>K/D/A: ${kills}/${deaths}/${assists}</p>`;
+    document.getElementById("searchResult").innerHTML=html;
+  }
 
-    // 관전: 내전 기록
-    function renderSpectateRecords(){const content=document.getElementById("contentArea");content.innerHTML="";currentMatchPage=0;const box=document.createElement("div");box.className="card";box.innerHTML=`<h2>내전 기록</h2><div id="recordsList"></div><div style="display:flex;justify-content:center;gap:8px;margin-top:10px"><button class="btn ghost" id="prevPage">&lt;</button><div id="pageInfo" class="small-muted"></div><button class="btn ghost" id="nextPage">&gt;</button></div>`;content.appendChild(box);document.getElementById("prevPage").onclick=()=>{if(currentMatchPage>0){currentMatchPage--;updateRecordsList();}};document.getElementById("nextPage").onclick=()=>{if((currentMatchPage+1)*PAGE_SIZE<matches.length){currentMatchPage++;updateRecordsList();}};updateRecordsList();}
-    function updateRecordsList(){const listDiv=document.getElementById("recordsList");listDiv.innerHTML="";const start=currentMatchPage*PAGE_SIZE;const page=matches.slice(start,start+PAGE_SIZE);page.forEach(m=>listDiv.appendChild(renderMatchRecord(m)));document.getElementById("pageInfo").innerText=`페이지 ${currentMatchPage+1} / ${Math.max(1,Math.ceil(matches.length/PAGE_SIZE))}`;}
-    function renderMatchRecord(m){const div=document.createElement("div");div.className="card";div.style.marginBottom="8px";div.innerHTML=`<div class="small-muted">${(m.map||'-')} / ${m.score||'-'} / 승:${m.winner}</div>`;["team1","team2"].forEach(t=>{const team=document.createElement("div");team.innerHTML=`<div style="font-weight:600;margin-top:6px">${t==="team1"?"팀1":"팀2"} ${m.winner===t?'<span style="color:var(--accent)">승리</span>':""}</div>`;(m[t]||[]).forEach(p=>{const row=document.createElement("div");row.className="small-muted";row.innerText=`${p.name||p.riotid}: ${p.kills}/${p.deaths}/${p.assists} | ACS:${p.acs||0} ADR:${p.adr||0} HS:${p.hs||0}%`;team.appendChild(row);});div.appendChild(team);});return div;}
-
-    // 관전: 전적 검색
-    function renderSpectateSearch(){const content=document.getElementById("contentArea");content.innerHTML="";const box=document.createElement("div");box.className="card";box.innerHTML=`<h2>전적 검색</h2><input id="searchInput" class="input" placeholder="닉네임 또는 Riot ID"/><button class="btn" id="searchBtn">검색</button><div id="searchResult" style="margin-top:12px"></div>`;content.appendChild(box);document.getElementById("searchBtn").onclick=()=>doSearch();}
-    function doSearch(){const q=document.getElementById("searchInput").value.trim();const out=document.getElementById("searchResult");out.innerHTML="";if(!q)return;let results=[];matches.forEach(m=>["team1","team2"].forEach(t=>(m[t]||[]).forEach(p=>{if((p.name&&p.name.includes(q))||(p.riotid&&p.riotid.includes(q)))results.push({m,team:t,p});})));if(results.length===0){out.innerHTML=`<div class="small-muted">검색결과 없음</div>`;return;}let k=0,d=0,a=0,g=0,acs=0,adr=0;results.forEach(r=>{k+=r.p.kills||0;d+=r.p.deaths||0;a+=r.p.assists||0;acs+=r.p.acs||0;adr+=r.p.adr||0;g++;});out.innerHTML=`<div class="small-muted">게임수:${g} KDA:${((k+a)/Math.max(1,d)).toFixed(2)} 평균ACS:${(acs/g).toFixed(1)} 평균ADR:${(adr/g).toFixed(1)}</div>`;}
-
-    // 관전: 티어표
-    function renderSpectateTiers(){const content=document.getElementById("contentArea");content.innerHTML="";const box=document.createElement("div");box.className="card";box.innerHTML=`<h2>티어표</h2><div id="tierTableWrap"></div>`;content.appendChild(box);computeAllStatsAndMMR();updateTierTable();}
-    let usersStats={};
-    function computeAllStatsAndMMR(){usersStats={};matches.forEach(m=>["team1","team2"].forEach(t=>(m[t]||[]).forEach(p=>{if(!usersStats[p.riotid])usersStats[p.riotid]={name:p.name,riotid:p.riotid,games:0,k:0,d:0,a:0,acs:0,adr:0};let st=usersStats[p.riotid];st.games++;st.k+=p.kills||0;st.d+=p.deaths||0;st.a+=p.assists||0;st.acs+=p.acs||0;st.adr+=p.adr||0;})));Object.values(usersStats).forEach(st=>{st.avgACS=st.games?st.acs/st.games:0;st.avgADR=st.games?st.adr/st.games:0;st.kda=(st.k+st.a)/Math.max(1,st.d);st.mmr=Math.round(1000+st.avgACS+st.avgADR+st.kda*50);st.tier=mmrToTier(st.mmr);});}
-    function mmrToTier(m){if(m<1200)return{name:"브론즈",icon:"icon-bronze"};if(m<1500)return{name:"실버",icon:"icon-silver"};if(m<1800)return{name:"골드",icon:"icon-gold"};if(m<2100)return{name:"플래티넘",icon:"icon-platinum"};if(m<2400)return{name:"다이아",icon:"icon-diamond"};if(m<2700)return{name:"이모탈",icon:"icon-immortal"};return{name:"레이디언트",icon:"icon-radiant"};}
-    function updateTierTable(){const arr=Object.values(usersStats).sort((a,b)=>b.mmr-a.mmr);let html=`<table><thead><tr><th>순위</th><th>닉네임</th><th>MMR</th><th>티어</th><th>KDA</th><th>평균ACS</th><th>평균ADR</th></tr></thead><tbody>`;arr.forEach((u,i)=>{html+=`<tr><td>${i+1}</td><td>${u.name||u.riotid}</td><td>${u.mmr}</td><td><span class="tier-badge"><span class="tier-icon ${u.tier.icon}">${u.tier.name[0]}</span>${u.tier.name}</span></td><td>${u.kda.toFixed(2)}</td><td>${u.avgACS.toFixed(1)}</td><td>${u.avgADR.toFixed(1)}</td></tr>`;});html+="</tbody></table>";document.getElementById("tierTableWrap").innerHTML=html;}
-
-    // 관리자: 입력
-    function renderAdminInput(){const content=document.getElementById("contentArea");content.innerHTML="";const box=document.createElement("div");box.className="card";box.innerHTML=`<h2>내전 입력</h2>
-      <div class="input-group"><label class="small">맵</label><input id="in_map" class="input"/></div>
-      <div class="input-group"><label class="small">스코어</label><input id="in_score" class="input"/></div>
-      <div class="input-group"><label class="small">승리팀</label><select id="in_winner" class="input"><option value="team1">팀1</option><option value="team2">팀2</option></select></div>
-      <div class="input-group"><label class="small">전적 원본 텍스트</label><textarea id="rawText" class="input" rows="10"></textarea></div>
-      <button class="btn" id="parseBtn">텍스트 파싱</button>
-      <button class="btn" id="saveBtn">저장</button>`;content.appendChild(box);
-      document.getElementById("parseBtn").onclick=()=>{const raw=document.getElementById("rawText").value;const parsed=parseValorantText(raw);window._parsedMatch=parsed;alert("파싱완료! 저장버튼을 누르세요.");};
-      document.getElementById("saveBtn").onclick=async()=>{if(!window._parsedMatch)return alert("먼저 파싱");const m={map:document.getElementById("in_map").value,score:document.getElementById("in_score").value,winner:document.getElementById("in_winner").value,date:serverTimestamp(),...window._parsedMatch};await addDoc(collection(db,"matches"),m);await loadMatches();alert("저장완료");};}
-
-    function parseValorantText(raw){let lines=raw.split("\n").map(x=>x.trim()).filter(x=>x);let team1=[],team2=[];let toTeam2=false;lines.forEach(line=>{if(line.includes("승리적군")){toTeam2=true;return;}if(line.match(/\d+\s*\/\s*\d+\s*\/\s*\d+/)){let name=line.split(/\s+/)[0];let kda=line.match(/(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)/);let kills=+kda[1],deaths=+kda[2],assists=+kda[3];let acsMatch=line.match(/\s(\d{2,3}\.\d{2})/);let acs=acsMatch?parseFloat(acsMatch[1]):0;let adrMatch=line.match(/\s(\d{2,3})\s*[+-]/);let adr=adrMatch?parseFloat(adrMatch[1]):0;let hs=line.match(/(\d+)%/);let hsVal=hs?+hs[1]:0;let obj={name,riotid:name,kills,deaths,assists,acs,adr,hs:hsVal};if(!toTeam2)team1.push(obj);else team2.push(obj);}});return{team1,team2};}
-
-    // 관리자: 관리/유저 관리 (간단)
-    function renderAdminManage(){const content=document.getElementById("contentArea");content.innerHTML="";const box=document.createElement("div");box.className="card";box.innerHTML="<h2>내전 관리</h2>";content.appendChild(box);matches.forEach(m=>{box.appendChild(renderMatchRecord(m));});}
-    function renderAdminUsers(){const content=document.getElementById("contentArea");content.innerHTML="";const box=document.createElement("div");box.className="card";box.innerHTML="<h2>유저 관리</h2>";content.appendChild(box);users.forEach(u=>{let row=document.createElement("div");row.className="small-muted";row.innerText=`${u.name} (${u.riotid})`;box.appendChild(row);});}
-
-    (async()=>{await loadUsers();await loadMatches();})();
-  </script>
+  // --- 티어표 (단순 예시) ---
+  db.collection("matches").onSnapshot(snapshot=>{
+    let stats={};
+    snapshot.forEach(doc=>{
+      const m=doc.data();
+      m.players.forEach(p=>{
+        if(!stats[p.name])stats[p.name]={games:0,wins:0,kills:0,deaths:0,mmr:1000};
+        stats[p.name].games++;
+        let kd=p.kda.split('/');
+        stats[p.name].kills+=(+kd[0]||0);
+        stats[p.name].deaths+=(+kd[1]||0);
+      });
+    });
+    let arr=Object.entries(stats).map(([name,v])=>({...v,name}));
+    arr.sort((a,b)=>b.mmr-a.mmr);
+    const tbody=document.getElementById("tierTable");
+    tbody.innerHTML="";
+    arr.forEach((u,i)=>{
+      tbody.innerHTML+=`<tr>
+        <td>${i+1}</td><td>${u.name}</td><td>골드2</td>
+        <td>${u.mmr}</td><td>${u.games}</td>
+        <td>${u.wins}</td><td>${u.games-u.wins}</td>
+        <td>${((u.wins/u.games*100)||0).toFixed(1)}%</td>
+      </tr>`;
+    });
+  });
+</script>
 </body>
 </html>
