@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>발로란트 내전 전적 시스템</title>
+  <title>발로란트 내전 전적 시스템 v0.1</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -21,16 +21,16 @@
     .modal-content { background:#1a1a1a; color:#eee; }
     .badge-win { background:#28a745; }
     .badge-lose { background:#dc3545; }
+    #version { position: fixed; top: 5px; left: 10px; font-size: 0.9rem; color:#0ff; }
   </style>
 </head>
 <body>
+<div id="version">v0.1</div>
 <div class="container py-4">
   <h1 class="text-center mb-4">발로란트 내전 전적 시스템</h1>
   <ul class="nav nav-tabs justify-content-center mb-4">
     <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#inputTab">내전 정보 입력</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#recordTab">내전 전적</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#searchTab">전적 검색</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tierTab">티어표</a></li>
   </ul>
 
   <div class="tab-content">
@@ -57,23 +57,6 @@
       <h4>내전 전적</h4>
       <div id="recordList"></div>
     </div>
-
-    <!-- 전적 검색 -->
-    <div class="tab-pane fade" id="searchTab">
-      <h4>전적 검색</h4>
-      <input type="text" id="searchUser" class="form-control mb-2" placeholder="닉네임#태그 입력">
-      <button class="btn btn-info mb-3" onclick="searchStats()">검색</button>
-      <div id="searchResult"></div>
-    </div>
-
-    <!-- 티어표 -->
-    <div class="tab-pane fade" id="tierTab">
-      <h4>티어표</h4>
-      <table class="table table-bordered table-striped">
-        <thead><tr><th>순위</th><th>닉네임</th><th>티어</th><th>MMR</th><th>총 게임</th><th>승</th><th>패</th><th>승률</th></tr></thead>
-        <tbody id="tierTable"></tbody>
-      </table>
-    </div>
   </div>
 </div>
 
@@ -93,7 +76,8 @@ const db=firebase.firestore();
 
 // --- 정규식 기반 파서 ---
 function parsePlayers(text){
-  const regex = /([가-힣a-zA-Z]+)\s+([\w#]+)\s+([\w\s]+)\s+([\w-]+)\s+(\d+\s*\/\s*\d+\s*\/\s*\d+)\s+([\d.]+:1)\s+([\d.]+)\s+(\d+)\s+([+-]?\d+)\s+(\d+%)\s+(\d+)\s+(\d+)\s+(\d+)/g;
+  // 정규식: 요원, 닉네임, 티어, 순위, KDA, 비율, ACS, ADR, DDΔ, HS%, FK, FD, MK
+  const regex = /([가-힣A-Za-z]+)\s+([\w#]+)\s+([\w가-힣0-9 ]+)\s+(OVP|MVP|\d+(?:st|nd|rd|th))\s+(\d+\s*\/\s*\d+\s*\/\s*\d+)\s+([\d.]+:1)\s+([\d.]+)\s+(\d+)\s+([+-]?\d+)\s+(\d+%)\s+(\d+)\s+(\d+)\s+(\d+)/g;
   let players=[];
   let match;
   while((match=regex.exec(text))!==null){
@@ -116,7 +100,7 @@ function parsePlayers(text){
   return players;
 }
 function parseMatch(raw){
-  let [teamAraw,teamBraw]=raw.split(/팀 B|승리적군/);
+  let [teamAraw,teamBraw]=raw.split(/승리적군|팀 B/);
   let team1=parsePlayers(teamAraw||"");
   let team2=parsePlayers(teamBraw||"");
   return {team1,team2};
@@ -127,7 +111,11 @@ document.getElementById("matchForm").addEventListener("submit",async e=>{
   e.preventDefault();
   let data=Object.fromEntries(new FormData(e.target).entries());
   let parsed=parseMatch(data.raw);
-  await db.collection("matches").add({map:data.map,score:data.score,date:data.date,team1:parsed.team1,team2:parsed.team2,created:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.collection("matches").add({
+    map:data.map,score:data.score,date:data.date,
+    team1:parsed.team1,team2:parsed.team2,
+    created:firebase.firestore.FieldValue.serverTimestamp()
+  });
   alert("저장 완료!"); e.target.reset();
 });
 
