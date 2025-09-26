@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>발로란트 내전 전적 시스템 v0.2</title>
+  <title>발로란트 내전 전적 시스템 v0.3</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -25,7 +25,7 @@
   </style>
 </head>
 <body>
-<div id="version">v0.2</div>
+<div id="version">v0.3</div>
 <div class="container py-4">
   <h1 class="text-center mb-4">발로란트 내전 전적 시스템</h1>
   <ul class="nav nav-tabs justify-content-center mb-4">
@@ -74,32 +74,43 @@ const firebaseConfig={apiKey:"AIzaSyDw2nAlGyepFTQQVN8m6slQmtLyc5vR0_s",authDomai
 firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
 
-// --- 줄 단위 파서 ---
-function parsePlayers(lines){
-  let players=[];
-  // 플레이어는 13줄씩 고정 (요원~MK)
-  for(let i=0;i+12<lines.length;i+=13){
+// --- 정규식 기반 파서 ---
+function parsePlayers(raw){
+  const tokens=raw.split(/\s+/).filter(x=>x);
+  const players=[];
+  let i=0;
+  while(i<tokens.length){
+    // KDA 패턴 찾기
+    let kdaIndex=tokens.findIndex((t,j)=>j>=i && /^\d+\/\d+\/\d+$/.test(t));
+    if(kdaIndex===-1) break;
     let p={};
-    p.agent   = lines[i]   || "";
-    p.name    = lines[i+1] || "";
-    p.tier    = lines[i+2] || "";
-    p.rankText= lines[i+5] || "";
-    p.kda     = lines[i+6] || "";
-    p.ratio   = lines[i+7] || "";
-    p.acs     = lines[i+8] || "";
-    p.adr     = lines[i+9] || "";
-    p.dd      = lines[i+10]|| "";
-    p.hs      = lines[i+11]|| "";
-    p.fk      = lines[i+12]|| "";
+    p.agent=tokens[i++]||"";
+    p.name=tokens[i++]||"";
+    while(i<kdaIndex-2){ // 닉네임이 공백 포함될 경우 보정
+      p.name+=" "+tokens[i++];
+    }
+    p.tier=tokens[i++]||"";
+    p.rankText=tokens[i++]||"";
+    p.kda=tokens[i++]||"";
+    p.ratio=tokens[i++]||"";
+    p.acs=tokens[i++]||"";
+    p.adr=tokens[i++]||"";
+    p.dd=tokens[i++]||"";
+    p.hs=tokens[i++]||"";
+    p.fk=tokens[i++]||"";
+    p.fd=tokens[i++]||"";
+    p.mk=tokens[i++]||"";
     players.push(p);
   }
   return players;
 }
+
 function parseMatch(raw){
-  let sections=raw.split(/승리적군|팀 B/);
-  let team1lines=sections[0].split("\n").map(l=>l.trim()).filter(l=>l);
-  let team2lines=(sections[1]||"").split("\n").map(l=>l.trim()).filter(l=>l);
-  return {team1:parsePlayers(team1lines), team2:parsePlayers(team2lines)};
+  let [teamAraw,teamBraw]=raw.split(/승리적군|팀 B/);
+  return {
+    team1: parsePlayers(teamAraw||""),
+    team2: parsePlayers(teamBraw||"")
+  };
 }
 
 // 저장
@@ -135,9 +146,9 @@ function showDetail(m){
   function render(players,label,isWin){
     let badge=isWin?'<span class="badge badge-win">승리</span>':'<span class="badge badge-lose">패배</span>';
     let out=`<h6>${label} ${badge}</h6><table class="table table-bordered table-sm table-striped"><thead><tr>
-    <th>요원</th><th>닉네임</th><th>티어</th><th>순위</th><th>KDA</th><th>비율</th><th>ACS</th><th>ADR</th><th>DDΔ</th><th>HS%</th><th>FK</th></tr></thead><tbody>`;
+    <th>요원</th><th>닉네임</th><th>티어</th><th>순위</th><th>KDA</th><th>비율</th><th>ACS</th><th>ADR</th><th>DDΔ</th><th>HS%</th><th>FK</th><th>FD</th><th>MK</th></tr></thead><tbody>`;
     players.forEach(p=>{
-      out+=`<tr><td>${p.agent}</td><td>${p.name}</td><td>${p.tier}</td><td>${p.rankText}</td><td>${p.kda}</td><td>${p.ratio}</td><td>${p.acs}</td><td>${p.adr}</td><td>${p.dd}</td><td>${p.hs}</td><td>${p.fk}</td></tr>`;
+      out+=`<tr><td>${p.agent}</td><td>${p.name}</td><td>${p.tier}</td><td>${p.rankText}</td><td>${p.kda}</td><td>${p.ratio}</td><td>${p.acs}</td><td>${p.adr}</td><td>${p.dd}</td><td>${p.hs}</td><td>${p.fk}</td><td>${p.fd}</td><td>${p.mk}</td></tr>`;
     });
     out+="</tbody></table>"; return out;
   }
