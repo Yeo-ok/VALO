@@ -370,7 +370,7 @@
       // ACS
       const acs = parseFloat(ls[idx++]||'0')||0;
 
-      // 마지막 라인: ADR  DDΔ  HS%  FK  FD  MK  (탭/복수 공백/부호 모두 허용)
+      // 마지막 라인: ADR  DDΔ  HS%  FK  FD  MK
       const tail = (ls[idx++]||'').replace(/\t+/g,' ').replace(/\s+/g,' ').trim();
       const parts = tail.split(' ');
       const adr = parseFloat(parts[0]||'0')||0;
@@ -803,6 +803,7 @@
       tb.append(el('tr',{}, el('td',{},String(idx+1)), el('td',{},p.tier), el('td',{},String(p.mmr)), el('td',{},p.tag), el('td',{},String(p.total)), el('td',{},String(p.wins)), el('td',{},String(p.losses)), el('td',{},wr)));
     });
   }
+
   async function loadMMRHistory(){
     const players = await getDocs(collection(db,'players'));
     const all=[];
@@ -812,4 +813,29 @@
       const hs=await getDocs(qd);
       hs.forEach(h=>all.push({tag:p.id, ...h.data()}));
     }
-    all.sort((a,b)=> (b.ts?.toDate?.()||0)-(
+    // 최신순 정렬 (ts 또는 date 필드 기준)
+    all.sort((a,b)=>{
+      const at = a.ts?.toDate?.() || a.date?.toDate?.() || 0;
+      const bt = b.ts?.toDate?.() || b.date?.toDate?.() || 0;
+      return bt - at;
+    });
+    const box=$('#mmrHistory'); box.innerHTML='';
+    if(all.length===0){ box.textContent='기록이 없습니다.'; return; }
+    all.slice(0,12).forEach(h=>{
+      const when = h.date?.toDate?.() || h.ts?.toDate?.() || new Date();
+      const line=el('div',{},
+        el('span',{class:'mono'}, fmtDate(when)),
+        ' — ', el('b',{},h.tag),' ',
+        el('span',{class: h.delta>=0?'ok':'ng'}, (h.delta>=0?'+':'')+h.delta),
+        ' ', el('span',{class:'muted'}, `(${h.mapName} ${h.score} ${h.won?'승':'패'} / ${h.place||'—'})`),
+        el('div',{class:'small muted'}, '사유: ' + (h.reasons||[]).join(', '))
+      );
+      box.append(line); box.append(el('div',{class:'divider'}));
+    });
+  }
+
+  // 초기 로드
+  loadTierBoard();
+</script>
+</body>
+</html>
