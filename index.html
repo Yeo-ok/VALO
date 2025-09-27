@@ -60,6 +60,12 @@
     .divider{height:1px;background:var(--border);margin:10px 0}
     .note{background:rgba(255, 236, 179,.08);border:1px solid #3a3320;padding:10px;border-radius:10px}
     .ok{color:var(--good)} .ng{color:var(--bad)}
+    /* modal */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:100}
+    .modal.show{display:flex}
+    .modal .box{max-width:1000px;width:100%;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px}
+    .toast{position:fixed;right:16px;bottom:16px;background:#162033;border:1px solid #243256;color:#eaf2ff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);z-index:120}
+    .hidden{display:none}
   </style>
 </head>
 <body>
@@ -68,7 +74,7 @@
     <div class="row">
       <div class="row" style="gap:10px">
         <div class="chip"><strong>VALORANT</strong> 내전 전적 시스템</div>
-        <div class="chip" id="versionChip">v0.6</div>
+        <div class="chip" id="versionChip">v0.7</div>
         <span class="muted small">Firestore 실시간 • 단일 파일</span>
       </div>
       <div class="right"></div>
@@ -118,7 +124,7 @@
         </div>
       </div>
       <div class="note small" style="margin-top:8px">
-        <b>팀 구분</b> — 본문 중간의 “승리적군 / 승리아군” 헤더로 양 팀 자동 분리(헤더가 있으면 뒤쪽 팀이 승리로 처리)
+        <b>팀 구분</b> — 본문 중간의 “승리적군 / 승리아군” 헤더로 양 팀 자동 분리(헤더가 있으면 뒤쪽 팀 승리)
       </div>
     </div>
 
@@ -202,6 +208,7 @@
   </section>
 </main>
 
+<!-- 상세 모달 -->
 <div id="modal" class="modal">
   <div class="box">
     <div class="row">
@@ -247,6 +254,22 @@
   const fmtDate=(d)=>{if(!(d instanceof Date)) d=new Date(d); const y=d.getFullYear(),m=('0'+(d.getMonth()+1)).slice(-2),day=('0'+d.getDate()).slice(-2); return `${y}-${m}-${day}`;};
   const parseDateInput=()=>{ const v=$('#matchDate').value; if(!v) return new Date(); return new Date(v+'T12:00:00'); };
 
+  /* ---------------- Tabs (페이지 이동 유지) ---------------- */
+  const switchTab=(name)=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
+    document.querySelectorAll('main > section').forEach(sec=>sec.classList.toggle('hidden',sec.id!=='tab-'+name));
+    // 해시로도 반영 (새로고침해도 같은 탭)
+    history.replaceState(null,'',`#${name}`);
+  };
+  // 탭 클릭
+  document.getElementById('tabs').addEventListener('click',(e)=>{
+    const t=e.target.closest('.tab'); if(!t) return; switchTab(t.dataset.tab);
+  });
+  // 해시로 초기 탭 복원
+  (function(){
+    const h=location.hash.replace('#',''); if(h) switchTab(h);
+  })();
+
   /* ---------------- Map Select ---------------- */
   const defaultMaps=['어센트','바인드','브리즈','아이스박스','로터스','코로드','선셋','프랙처','헤이븐','스플릿','어비스'];
   const mapSelect=$('#mapSelect');
@@ -265,16 +288,7 @@
     toast(`"${name}" 맵이 추가되었습니다.`);
   });
 
-  /* ---------------- Tabs ---------------- */
-  const switchTab=(name)=>{
-    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
-    document.querySelectorAll('main > section').forEach(sec=>sec.classList.toggle('hidden',sec.id!=='tab-'+name));
-  };
-  $('#tabs').addEventListener('click',(e)=>{
-    const t=e.target.closest('.tab'); if(!t) return; switchTab(t.dataset.tab);
-  });
-
-  /* ---------------- Agent badge (단일 정의) ---------------- */
+  /* ---------------- Agent badge ---------------- */
   function agentBadge(name){
     const wrap = el('div',{class:'agent-badge'});
     wrap.append(el('div',{class:'chip'},name||'요원'));
@@ -286,15 +300,13 @@
   function cleanup(text){
     return text
       .replace(/\r/g,'')
-      .split('\n')
-      .map(s=>s.trim())
-      .filter(Boolean)
+      .split('\n').map(s=>s.trim()).filter(Boolean)
       .filter(s=>!/^OP\s*Score|^순위$|^K\/?D\/?A$|^ACS$|^ADR$|^DDΔ$|^HS%$|^FK\/FD\/MK$/.test(s))
       .join('\n');
   }
   function splitTeamBlocks(raw){
     const cleaned = cleanup(raw);
-    const parts = cleaned.split(/\n\s*승리[^\n]*\n/); // 승리아군/승리적군
+    const parts = cleaned.split(/\n\s*승리[^\n]*\n/);
     if(parts.length===1) return [parts[0], ''];
     return [parts[0], parts[1]];
   }
@@ -390,8 +402,8 @@
       makeTable(parsed.B, !parsed.aWon)
     );
   }
-  $('#btnParse').addEventListener('click', ()=>{
-    const raw = $('#rawPaste').value.trim();
+  document.getElementById('btnParse').addEventListener('click', ()=>{
+    const raw = document.getElementById('rawPaste').value.trim();
     if(!raw){ toast('원문을 붙여넣어 주세요.'); return; }
     const parsed = parseRaw(raw);
     lastParsed = parsed;
@@ -496,9 +508,9 @@
   }
 
   /* ---------------- 저장 ---------------- */
-  $('#btnSaveMatch').addEventListener('click', async ()=>{
-    const mapName = mapSelect.value.trim();
-    const score = $('#finalScore').value.trim();
+  document.getElementById('btnSaveMatch').addEventListener('click', async ()=>{
+    const mapName = document.getElementById('mapSelect').value.trim();
+    const score = document.getElementById('finalScore').value.trim();
     if(!mapName || !score){ toast('맵과 스코어를 입력/선택하세요.'); return; }
     if(!lastParsed || lastParsed.A.length!==5 || lastParsed.B.length!==5){
       toast('먼저 "원문 파싱"으로 10명을 인식해주세요.'); return;
@@ -510,14 +522,14 @@
     await updateAggregatesForMatch(docRef.id, dt, score, lastParsed.A, lastParsed.B, lastParsed.aWon, mapName);
     toast('저장 완료! 내전 전적 탭에서 확인하세요.');
     switchTab('matches');
-    $('#rawPaste').value=''; lastParsed=null; $('#previewBody').textContent='아직 파싱하지 않았습니다.';
+    document.getElementById('rawPaste').value=''; lastParsed=null; document.getElementById('previewBody').textContent='아직 파싱하지 않았습니다.';
   });
 
   /* ---------------- Matches (list/paging) ---------------- */
   let allMatches=[], filteredMatches=[], currentPage=1; const pageSize=10;
   function renderPagination(){
     const totalPages=Math.max(1, Math.ceil(filteredMatches.length/pageSize));
-    const box=$('#pagination'); box.innerHTML='';
+    const box=document.getElementById('pagination'); box.innerHTML='';
     const btn=(label,page,active,disabled)=>{
       const b=el('div',{class:'page'+(active?' active':''),'data-page':page},label);
       if(disabled){ b.style.opacity='.5'; b.style.pointerEvents='none'; }
@@ -528,13 +540,13 @@
     for(let p=start;p<=end;p++) btn(String(p),p,p===currentPage);
     btn('다음',Math.min(totalPages,currentPage+1),false,currentPage===totalPages);
   }
-  $('#pagination').addEventListener('click',(e)=>{
+  document.getElementById('pagination').addEventListener('click',(e)=>{
     const b=e.target.closest('.page'); if(!b) return;
     const p=parseInt(b.dataset.page,10); if(!isFinite(p)) return;
     currentPage=p; renderMatchTable();
   });
   function renderMatchTable(){
-    const tbody=$('#matchTable tbody'); tbody.innerHTML='';
+    const tbody=document.querySelector('#matchTable tbody'); tbody.innerHTML='';
     const start=(currentPage-1)*pageSize, end=Math.min(filteredMatches.length,start+pageSize);
     for(let i=start;i<end;i++){
       const m=filteredMatches[i];
@@ -551,17 +563,17 @@
     renderPagination();
   }
   function applyMatchFilters(){
-    const q=$('#matchSearch').value.trim().toLowerCase();
+    const q=document.getElementById('matchSearch').value.trim().toLowerCase();
     let arr=[...allMatches];
     if(q) arr=arr.filter(m=>(m.mapName||'').toLowerCase().includes(q));
-    const sort=$('#matchSort').value;
+    const sort=document.getElementById('matchSort').value;
     if(sort==='date_desc') arr.sort((a,b)=>(b.matchDate||b.savedAt)-(a.matchDate||a.savedAt));
     if(sort==='date_asc') arr.sort((a,b)=>(a.matchDate||a.savedAt)-(b.matchDate||b.savedAt));
     if(sort==='map_asc') arr.sort((a,b)=> (a.mapName||'').localeCompare(b.mapName||''));
     filteredMatches=arr; currentPage=1; renderMatchTable();
   }
-  $('#matchSort').addEventListener('change',applyMatchFilters);
-  $('#matchSearch').addEventListener('input',applyMatchFilters);
+  document.getElementById('matchSort').addEventListener('change',applyMatchFilters);
+  document.getElementById('matchSearch').addEventListener('input',applyMatchFilters);
   async function loadMatches(){
     onSnapshot(collection(db,'matches'),(snap)=>{
       const arr=[];
@@ -582,10 +594,10 @@
   }
   loadMatches();
 
-  // 상세 모달
+  // 상세 모달 (열기)
   window.viewMatch=(id)=>{
     const m=allMatches.find(x=>x.id===id); if(!m) return;
-    const box=$('#modalContent'); box.innerHTML='';
+    const box=document.getElementById('modalContent'); box.innerHTML='';
     const makeTeam=(team,won)=>{
       const wrap=el('div',{class:'card'});
       wrap.append(el('div',{class:'row'}, el('b',{}, won?'Team (승)':'Team (패)'), el('span',{class:'right pill'},`플레이어 ${team.length}명`)));
@@ -618,19 +630,17 @@
       makeTeam(m.teamA, m.aWon),
       makeTeam(m.teamB, !m.aWon)
     );
-    $('#modal').classList.add('show');
+    document.getElementById('modal').classList.add('show');
   };
-  $('#btnCloseModal').addEventListener('click',()=>$('#modal').classList.remove('show'));
-  $('#modal').addEventListener('click',(e)=>{ if(e.target.id==='modal') $('#modal').classList.remove('show'); });
+  // 상세 모달 (닫기)
+  document.getElementById('btnCloseModal').addEventListener('click',()=>document.getElementById('modal').classList.remove('show'));
+  document.getElementById('modal').addEventListener('click',(e)=>{ if(e.target.id==='modal') document.getElementById('modal').classList.remove('show'); });
 
   /* ---------------- Search (맵/요원/같은팀/상대팀 표) ---------------- */
-  $('#btnSearch').addEventListener('click',()=>doSearch($('#searchQuery').value.trim()));
+  document.getElementById('btnSearch').addEventListener('click',()=>doSearch(document.getElementById('searchQuery').value.trim()));
 
   function safeAppendCard(parent, title, table){
-    const card=el('div',{class:'card'});
-    card.append(el('b',{},title));
-    card.append(table);
-    parent.append(card);
+    const card=el('div',{class:'card'}); card.append(el('b',{},title)); card.append(table); parent.append(card);
   }
   function buildTable(columns, rows){
     const table=el('table',{class:'list table-tight'});
@@ -645,7 +655,7 @@
   }
 
   async function doSearch(tag){
-    const box=$('#searchResult'); box.innerHTML='';
+    const box=document.getElementById('searchResult'); box.innerHTML='';
     if(!tag){ toast('닉네임#태그를 입력하세요.'); return; }
 
     const snap=await getDocs(collection(db,'matches'));
@@ -671,17 +681,13 @@
       const p=m.self;
       K+=p.k; D+=p.d; A+=p.a; sumACS+=p.acs; sumADR+=p.adr||0; sumDDD+=p.ddd||0; sumHS+=p.hs||0; FK+=p.fk||0; FD+=p.fd||0; MK+=p.mk||0;
 
-      // 맵/요원
       mapStats[m.mapName]=mapStats[m.mapName]||{w:0,l:0}; (won?mapStats[m.mapName].w++:mapStats[m.mapName].l++);
       agentStats[p.agent]=agentStats[p.agent]||{w:0,l:0}; (won?agentStats[p.agent].w++:agentStats[p.agent].l++);
 
-      // 같은 팀
       (m.side==='A'?m.teamA:m.teamB).filter(x=>x.tag!==tag).forEach(x=>{
         mateStats[x.tag]=mateStats[x.tag]||{w:0,l:0};
         (won?mateStats[x.tag].w++:mateStats[x.tag].l++);
       });
-
-      // 상대 팀 (내 관점)
       (m.side==='A'?m.teamB:m.teamA).forEach(x=>{
         oppStats[x.tag]=oppStats[x.tag]||{w:0,l:0};
         (won?oppStats[x.tag].w++:oppStats[x.tag].l++);
@@ -745,7 +751,7 @@
     const arr=[];
     snap.forEach(d=>{ const x=d.data(); arr.push({tag:x.tag, mmr:x.mmr||baseMMR, tier:x.tier||mmrToTier(x.mmr||baseMMR), total:x.total||0, wins:x.wins||0, losses:x.losses||0}); });
     arr.sort((a,b)=>b.mmr-a.mmr);
-    const tb=$('#tierTable tbody'); tb.innerHTML='';
+    const tb=document.querySelector('#tierTable tbody'); tb.innerHTML='';
     arr.forEach((p,idx)=>{
       const wr=(p.total? (p.wins/p.total*100):0).toFixed(1)+'%';
       tb.append(el('tr',{}, el('td',{},String(idx+1)), el('td',{},p.tier), el('td',{},String(p.mmr)), el('td',{},p.tag), el('td',{},String(p.total)), el('td',{},String(p.wins)), el('td',{},String(p.losses)), el('td',{},wr)));
@@ -765,7 +771,7 @@
       const bt = b.ts?.toDate?.() || b.date?.toDate?.() || 0;
       return bt - at;
     });
-    const box=$('#mmrHistory'); box.innerHTML='';
+    const box=document.getElementById('mmrHistory'); box.innerHTML='';
     if(all.length===0){ box.textContent='기록이 없습니다.'; return; }
     all.slice(0,12).forEach(h=>{
       const when = h.date?.toDate?.() || h.ts?.toDate?.() || new Date();
@@ -782,6 +788,14 @@
 
   // 초기 로드
   loadTierBoard();
+</script>
+
+<!-- 모달 백드롭 클릭 시 닫기 보장 -->
+<script>
+  // (module 스코프 외부 보조: 혹시 브라우저/번들 캐시 이슈 대비)
+  document.addEventListener('keydown', (e)=>{
+    if(e.key==='Escape'){ const m=document.getElementById('modal'); if(m) m.classList.remove('show'); }
+  });
 </script>
 </body>
 </html>
