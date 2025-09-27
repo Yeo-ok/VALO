@@ -59,6 +59,7 @@
     .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
     .divider{height:1px;background:var(--border);margin:10px 0}
     .note{background:rgba(255, 236, 179,.08);border:1px solid #3a3320;padding:10px;border-radius:10px}
+    .ok{color:var(--good)} .ng{color:var(--bad)}
   </style>
 </head>
 <body>
@@ -67,7 +68,7 @@
     <div class="row">
       <div class="row" style="gap:10px">
         <div class="chip"><strong>VALORANT</strong> 내전 전적 시스템</div>
-        <div class="chip" id="versionChip">v0.5</div>
+        <div class="chip" id="versionChip">v0.6</div>
         <span class="muted small">Firestore 실시간 • 단일 파일</span>
       </div>
       <div class="right"></div>
@@ -107,7 +108,7 @@
       <div class="grid">
         <div>
           <label>내전 정보 입력칸 (원문 붙여넣기)</label>
-          <textarea id="rawPaste" placeholder="여기에 전체를 붙여넣으세요.&#10;네온~브림스톤, 승리적군/승리아군 헤더 포함 텍스트 그대로 붙여넣으면 됩니다."></textarea>
+          <textarea id="rawPaste" placeholder="네온~브림스톤 5명 + '승리적군'(또는 승리아군) 헤더가 포함된 텍스트를 그대로 붙여넣으세요."></textarea>
         </div>
         <div class="row">
           <button id="btnParse" class="btn">원문 파싱</button>
@@ -117,8 +118,7 @@
         </div>
       </div>
       <div class="note small" style="margin-top:8px">
-        <b>팀 구분</b> — 본문 중간의 “승리적군 / 승리아군” 헤더로 양 팀 자동 분리(헤더 있으면 뒤쪽 팀이 승리)<br/>
-        <b>메트릭</b> — K/D/A, ACS, ADR, DDΔ, HS%, FK/FD/MK 모두 파싱
+        <b>팀 구분</b> — 본문 중간의 “승리적군 / 승리아군” 헤더로 양 팀 자동 분리(헤더가 있으면 뒤쪽 팀이 승리로 처리)
       </div>
     </div>
 
@@ -191,7 +191,7 @@
         <ul>
           <li>모든 유저는 <span class="pill">골드 2 (MMR 2000)</span>에서 시작</li>
           <li>기본 승/패: <span class="ok">+25</span> / <span class="ng">-25</span></li>
-          <li>최근 10판 중 연승4+ & MVP≥3 시 그 판 <b>+10</b></li>
+          <li>연승4+ & MVP≥3 시 그 판 <b>+10</b></li>
         </ul>
       </div>
       <div class="card" id="mmrHistoryBox">
@@ -274,16 +274,10 @@
     const t=e.target.closest('.tab'); if(!t) return; switchTab(t.dataset.tab);
   });
 
-  /* ---------------- Agent icon (optional) ---------------- */
-  const agentIconMap={};
-  function agentCell(name){
+  /* ---------------- Agent badge (단일 정의) ---------------- */
+  function agentBadge(name){
     const wrap = el('div',{class:'agent-badge'});
-    if(agentIconMap[name]){
-      const img=el('img',{src:agentIconMap[name],alt:name,onerror:"this.remove();"});
-      wrap.append(img);
-    }else{
-      wrap.append(el('div',{class:'chip'},name||'요원'));
-    }
+    wrap.append(el('div',{class:'chip'},name||'요원'));
     wrap.append(el('span',{},name||'요원'));
     return wrap;
   }
@@ -300,7 +294,7 @@
   }
   function splitTeamBlocks(raw){
     const cleaned = cleanup(raw);
-    const parts = cleaned.split(/\n\s*승리[^\n]*\n/);
+    const parts = cleaned.split(/\n\s*승리[^\n]*\n/); // 승리아군/승리적군
     if(parts.length===1) return [parts[0], ''];
     return [parts[0], parts[1]];
   }
@@ -363,12 +357,6 @@
 
   /* -------------- Preview & Save -------------- */
   let lastParsed = null;
-  function agentCell(name){
-    const wrap = el('div',{class:'agent-badge'});
-    wrap.append(el('div',{class:'chip'},name||'요원'));
-    wrap.append(el('span',{},name||'요원'));
-    return wrap;
-  }
   function renderPreview(parsed){
     const box = $('#previewBody'); box.innerHTML='';
     const makeTable=(team,won)=>{
@@ -380,7 +368,7 @@
       const tb=el('tbody',{});
       team.forEach(p=>{
         tb.append(el('tr',{},
-          el('td',{}, agentCell(p.agent)),
+          el('td',{}, agentBadge(p.agent)),
           el('td',{}, p.tag),
           el('td',{}, p.place||'—'),
           el('td',{}, `${p.k} / ${p.d} / ${p.a}`),
@@ -425,7 +413,6 @@
     if(t==='레디언트'){div=1;} else div=delta>=120?1: delta>=60?2:3;
     return `${t} ${div}`;
   }
-
   async function ensurePlayer(tag){
     const ref = doc(db,'players', tag);
     const snap = await getDoc(ref);
@@ -447,7 +434,6 @@
     });
     return {wins,mvps,winstreak,losestreak};
   }
-
   function computeMMRDelta(ctx){
     let delta = ctx.won?25:-25;
     const reasons=[ctx.won?'+25 (승리)':'-25 (패배)'];
@@ -459,7 +445,8 @@
     if(!allADRZero){
       const meanADR = adrs.reduce((a,b)=>a+b,0)/adrs.length||0;
       const sdADR = Math.sqrt(adrs.map(x=>(x-meanADR)**2).reduce((a,b)=>a+b,0)/adrs.length)||1;
-      let adrAdj = ((ctx.player.adr-meanADR)/sdADR)*2; adrAdj = Math.max(-4, Math.min(4, adrAdj));
+      let adrAdj = ((ctx.player.adr-meanADR)/sdADR)*2;
+      adrAdj = Math.max(-4, Math.min(4, adrAdj));
       if(adrAdj){ delta+=adrAdj; reasons.push(`${adrAdj>=0?'+':''}${adrAdj.toFixed(1)} (ADR 상대보정)`); }
     }
     const allDDDZero = ctx.teamStats.every(p=>(p.ddd||0)===0);
@@ -471,12 +458,13 @@
     const hsAllZero = ctx.teamStats.every(p=>(p.hs||0)===0);
     if(!hsAllZero){
       const hsAvg = ctx.teamStats.reduce((a,b)=>a+(b.hs||0),0)/ctx.teamStats.length||0;
-      const diffHS = (ctx.player.hs||0)-hsAvg; let hsAdj = 0;
-      if(diffHS>=10) hsAdj=+3; else if(diffHS<=-10) hsAdj=-3;
+      const diffHS = (ctx.player.hs||0)-hsAvg;
+      let hsAdj = 0; if(diffHS>=10) hsAdj=+3; else if(diffHS<=-10) hsAdj=-3;
       if(hsAdj){ delta+=hsAdj; reasons.push(`${hsAdj>0?'+':''}${hsAdj} (HS%)`); }
     }
     let fAdj = ((ctx.player.fk||0) - (ctx.player.fd||0))*2 + ((ctx.player.mk||0)*1);
-    fAdj = Math.max(-6, Math.min(6, fAdj)); if(fAdj){ delta+=fAdj; reasons.push(`${fAdj>0?'+':''}${fAdj} (FK/FD/MK)`); }
+    fAdj = Math.max(-6, Math.min(6, fAdj));
+    if(fAdj){ delta+=fAdj; reasons.push(`${fAdj>0?'+':''}${fAdj} (FK/FD/MK)`); }
     const meanADR2 = adrs.reduce((a,b)=>a+b,0)/adrs.length||0;
     const topPerf = (rankACS<=2) && (allADRZero ? true : (ctx.player.adr>=meanADR2));
     const lowPerf = (rankACS>=4) && (allADRZero ? true : (ctx.player.adr<meanADR2));
@@ -489,8 +477,7 @@
     if(r.winstreak>=4 && r.mvps>=3){ delta+=10; reasons.push('+10 (연승4+ & MVP≥3)'); }
     return {delta:Math.round(delta), reasons};
   }
-
-  async function updateAggregatesForMatch(matchId, matchDate, mapName, score, teamA, teamB, aWon){
+  async function updateAggregatesForMatch(matchId, matchDate, score, teamA, teamB, aWon, mapName){
     const all=[...teamA,...teamB];
     for(const p of all){
       const ref = await ensurePlayer(p.tag);
@@ -507,6 +494,24 @@
       await addDoc(collection(db,'players', p.tag, 'mmr_history'),{ ts:serverTimestamp(), matchId, mapName, score, date:matchDate, delta:mmrRes.delta, reasons:mmrRes.reasons, won, place:p.place||'—' });
     }
   }
+
+  /* ---------------- 저장 ---------------- */
+  $('#btnSaveMatch').addEventListener('click', async ()=>{
+    const mapName = mapSelect.value.trim();
+    const score = $('#finalScore').value.trim();
+    if(!mapName || !score){ toast('맵과 스코어를 입력/선택하세요.'); return; }
+    if(!lastParsed || lastParsed.A.length!==5 || lastParsed.B.length!==5){
+      toast('먼저 "원문 파싱"으로 10명을 인식해주세요.'); return;
+    }
+    const dt = parseDateInput();
+    const docRef = await addDoc(collection(db,'matches'),{
+      mapName, score, matchDate: dt, teamA:lastParsed.A, teamB:lastParsed.B, aWon:lastParsed.aWon, savedAt: serverTimestamp()
+    });
+    await updateAggregatesForMatch(docRef.id, dt, score, lastParsed.A, lastParsed.B, lastParsed.aWon, mapName);
+    toast('저장 완료! 내전 전적 탭에서 확인하세요.');
+    switchTab('matches');
+    $('#rawPaste').value=''; lastParsed=null; $('#previewBody').textContent='아직 파싱하지 않았습니다.';
+  });
 
   /* ---------------- Matches (list/paging) ---------------- */
   let allMatches=[], filteredMatches=[], currentPage=1; const pageSize=10;
@@ -585,15 +590,31 @@
       const wrap=el('div',{class:'card'});
       wrap.append(el('div',{class:'row'}, el('b',{}, won?'Team (승)':'Team (패)'), el('span',{class:'right pill'},`플레이어 ${team.length}명`)));
       const tbl=el('table',{class:'list table-tight'});
-      tbl.append(el('thead',{}, el('tr',{}, el('th',{},'요원'), el('th',{},'닉네임'), el('th',{},'순위'), el('th',{},'K / D / A'), el('th',{},'ACS'), el('th',{},'ADR'), el('th',{},'DDΔ'), el('th',{},'HS%'), el('th',{},'FK/FD/MK'))));
+      tbl.append(el('thead',{}, el('tr',{},
+        el('th',{},'요원'), el('th',{},'닉네임'), el('th',{},'순위'),
+        el('th',{},'K / D / A'), el('th',{},'ACS'), el('th',{},'ADR'), el('th',{},'DDΔ'), el('th',{},'HS%'), el('th',{},'FK/FD/MK')
+      )));
       const tb=el('tbody',{});
       team.forEach(p=>{
-        tb.append(el('tr',{}, el('td',{},agentCell(p.agent)), el('td',{},p.tag), el('td',{},p.place||'—'), el('td',{},`${p.k} / ${p.d} / ${p.a}`), el('td',{},String(p.acs)), el('td',{},String(p.adr||0)), el('td',{},String(p.ddd||0)), el('td',{},(p.hs||0)+'%'), el('td',{},`${p.fk||0}/${p.fd||0}/${p.mk||0}`)));
+        tb.append(el('tr',{},
+          el('td',{},agentBadge(p.agent)),
+          el('td',{},p.tag),
+          el('td',{},p.place||'—'),
+          el('td',{},`${p.k} / ${p.d} / ${p.a}`),
+          el('td',{},String(p.acs)),
+          el('td',{},String(p.adr||0)),
+          el('td',{},String(p.ddd||0)),
+          el('td',{},(p.hs||0)+'%'),
+          el('td',{},`${p.fk||0}/${p.fd||0}/${p.mk||0}`)
+        ));
       });
       tbl.append(tb); wrap.append(tbl); return wrap;
     };
     box.append(
-      el('div',{class:'row'}, el('div',{}, el('span',{class:'pill'}, m.mapName), ' ', el('span',{class:'muted'}, fmtDate(m.matchDate))), el('div',{class:'right'}, el('span',{class:'chip'}, '스코어: '+m.score), ' ', el('span',{class: m.aWon?'badge-win':'badge-loss'}, m.aWon?'Team A 승':'Team B 승'))),
+      el('div',{class:'row'},
+        el('div',{}, el('span',{class:'pill'}, m.mapName), ' ', el('span',{class:'muted'}, fmtDate(m.matchDate))),
+        el('div',{class:'right'}, el('span',{class:'chip'}, '스코어: '+m.score), ' ', el('span',{class: m.aWon?'badge-win':'badge-loss'}, m.aWon?'Team A 승':'Team B 승'))
+      ),
       makeTeam(m.teamA, m.aWon),
       makeTeam(m.teamB, !m.aWon)
     );
@@ -602,14 +623,27 @@
   $('#btnCloseModal').addEventListener('click',()=>$('#modal').classList.remove('show'));
   $('#modal').addEventListener('click',(e)=>{ if(e.target.id==='modal') $('#modal').classList.remove('show'); });
 
-  /* ---------------- Search (고쳐진 표 렌더) ---------------- */
+  /* ---------------- Search (맵/요원/같은팀/상대팀 표) ---------------- */
   $('#btnSearch').addEventListener('click',()=>doSearch($('#searchQuery').value.trim()));
+
   function safeAppendCard(parent, title, table){
     const card=el('div',{class:'card'});
     card.append(el('b',{},title));
     card.append(table);
     parent.append(card);
   }
+  function buildTable(columns, rows){
+    const table=el('table',{class:'list table-tight'});
+    const thead=el('thead',{}, el('tr',{}, ...columns.map(c=>el('th',{},c))));
+    const tbody=el('tbody',{});
+    if(rows.length===0){
+      tbody.append(el('tr',{}, el('td',{colspan:String(columns.length)}, '데이터가 없습니다.')));
+    }else{
+      rows.forEach(r=> tbody.append(el('tr',{}, ...r.map(cell=>el('td',{},cell)))));
+    }
+    table.append(thead, tbody); return table;
+  }
+
   async function doSearch(tag){
     const box=$('#searchResult'); box.innerHTML='';
     if(!tag){ toast('닉네임#태그를 입력하세요.'); return; }
@@ -629,29 +663,28 @@
 
     // 집계
     let total=0,wins=0,losses=0,K=0,D=0,A=0,sumACS=0,sumADR=0,sumDDD=0,sumHS=0,FK=0,FD=0,MK=0;
-    const mapStats={}, agentStats={}, teamMateRates={}, oppRates={};
+    const mapStats={}, agentStats={}, mateStats={}, oppStats={};
 
     for(const m of matches){
       total++; const won = (m.aWon && m.side==='A') || (!m.aWon && m.side==='B');
       if(won) wins++; else losses++;
-      const p=m.self; K+=p.k; D+=p.d; A+=p.a; sumACS+=p.acs; sumADR+=p.adr||0; sumDDD+=p.ddd||0; sumHS+=p.hs||0; FK+=p.fk||0; FD+=p.fd||0; MK+=p.mk||0;
+      const p=m.self;
+      K+=p.k; D+=p.d; A+=p.a; sumACS+=p.acs; sumADR+=p.adr||0; sumDDD+=p.ddd||0; sumHS+=p.hs||0; FK+=p.fk||0; FD+=p.fd||0; MK+=p.mk||0;
 
       // 맵/요원
       mapStats[m.mapName]=mapStats[m.mapName]||{w:0,l:0}; (won?mapStats[m.mapName].w++:mapStats[m.mapName].l++);
       agentStats[p.agent]=agentStats[p.agent]||{w:0,l:0}; (won?agentStats[p.agent].w++:agentStats[p.agent].l++);
 
-      // 같은 팀 동료
-      const mates=(m.side==='A'?m.teamA:m.teamB).filter(x=>x.tag!==tag);
-      mates.forEach(x=>{
-        teamMateRates[x.tag]=teamMateRates[x.tag]||{w:0,l:0};
-        (won?teamMateRates[x.tag].w++:teamMateRates[x.tag].l++);
+      // 같은 팀
+      (m.side==='A'?m.teamA:m.teamB).filter(x=>x.tag!==tag).forEach(x=>{
+        mateStats[x.tag]=mateStats[x.tag]||{w:0,l:0};
+        (won?mateStats[x.tag].w++:mateStats[x.tag].l++);
       });
 
       // 상대 팀 (내 관점)
-      const opps=(m.side==='A'?m.teamB:m.teamA);
-      opps.forEach(x=>{
-        oppRates[x.tag]=oppRates[x.tag]||{w:0,l:0};
-        (won?oppRates[x.tag].w++:oppRates[x.tag].l++); // 내 승/패
+      (m.side==='A'?m.teamB:m.teamA).forEach(x=>{
+        oppStats[x.tag]=oppStats[x.tag]||{w:0,l:0};
+        (won?oppStats[x.tag].w++:oppStats[x.tag].l++);
       });
     }
 
@@ -681,46 +714,29 @@
     );
     box.append(hdr);
 
-    // 표: 공통 생성기
-    const buildTable=(columns, rows)=>{
-      const table=el('table',{class:'list table-tight'});
-      const thead=el('thead',{}, el('tr',{}, ...columns.map(c=>el('th',{},c))));
-      const tbody=el('tbody',{});
-      rows.forEach(r=> tbody.append(el('tr',{}, ...r.map(cell=>el('td',{},cell)))));
-      table.append(thead, tbody); return table;
-    };
-
     // 맵별
-    try{
-      const rows = Object.entries(mapStats)
-        .sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l))
-        .map(([name,st])=>[name, String(st.w), String(st.l), pct(st.w,st.l).toFixed(1)+'%']);
-      safeAppendCard(box, '맵별 성적', buildTable(['맵','승','패','승률'], rows));
-    }catch(err){ console.error(err); box.append(el('div',{class:'note'},'맵별 성적 집계 중 오류가 발생했습니다.')); }
+    const mapRows = Object.entries(mapStats)
+      .sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l))
+      .map(([name,st])=>[name, String(st.w), String(st.l), pct(st.w,st.l).toFixed(1)+'%']);
+    safeAppendCard(box, '맵별 성적', buildTable(['맵','승','패','승률'], mapRows));
 
     // 요원별
-    try{
-      const rows = Object.entries(agentStats)
-        .sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l))
-        .map(([ag,st])=>[agentCell(ag), String(st.w), String(st.l), pct(st.w,st.l).toFixed(1)+'%']);
-      safeAppendCard(box, '요원별 성적', buildTable(['요원','승','패','승률'], rows));
-    }catch(err){ console.error(err); box.append(el('div',{class:'note'},'요원별 성적 집계 중 오류가 발생했습니다.')); }
+    const agentRows = Object.entries(agentStats)
+      .sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l))
+      .map(([ag,st])=>[ag, String(st.w), String(st.l), pct(st.w,st.l).toFixed(1)+'%']);
+    safeAppendCard(box, '요원별 성적', buildTable(['요원','승','패','승률'], agentRows));
 
     // 같은 팀
-    try{
-      const rows = Object.entries(teamMateRates)
-        .sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l))
-        .map(([nick,st])=>[nick, String(st.w), String(st.l), pct(st.w,st.l).toFixed(1)+'%']);
-      safeAppendCard(box, '같은 팀일 때 (유저별 승/패/승률)', buildTable(['플레이어','승','패','승률'], rows));
-    }catch(err){ console.error(err); box.append(el('div',{class:'note'},'같은 팀 집계 중 오류가 발생했습니다.')); }
+    const mateRows = Object.entries(mateStats)
+      .sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l))
+      .map(([nick,st])=>[nick, String(st.w), String(st.l), pct(st.w,st.l).toFixed(1)+'%']);
+    safeAppendCard(box, '같은 팀일 때 (유저별 승/패/승률)', buildTable(['플레이어','승','패','승률'], mateRows));
 
     // 상대 팀 (내 관점)
-    try{
-      const rows = Object.entries(oppRates)
-        .sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l))
-        .map(([nick,st])=>[nick, String(st.w), String(st.l), pct(st.w,st.l).toFixed(1)+'%']);
-      safeAppendCard(box, '상대 팀일 때 (내 관점 승/패/승률)', buildTable(['플레이어','승','패','승률'], rows));
-    }catch(err){ console.error(err); box.append(el('div',{class:'note'},'상대 팀 집계 중 오류가 발생했습니다.')); }
+    const oppRows = Object.entries(oppStats)
+      .sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l))
+      .map(([nick,st])=>[nick, String(st.w), String(st.l), pct(st.w,st.l).toFixed(1)+'%']);
+    safeAppendCard(box, '상대 팀일 때 (내 관점 승/패/승률)', buildTable(['플레이어','승','패','승률'], oppRows));
   }
 
   /* ---------------- Tier board ---------------- */
@@ -756,7 +772,7 @@
       const line=el('div',{},
         el('span',{class:'mono'}, fmtDate(when)),
         ' — ', el('b',{},h.tag),' ',
-        el('span',{class: h.delta>=0?'ok':'ng'}, (h.delta>=0?'+':'')+h.delta),
+        el('span',{class: (h.delta??0)>=0?'ok':'ng'}, ((h.delta??0)>=0?'+':'')+(h.delta??0)),
         ' ', el('span',{class:'muted'}, `(${h.mapName} ${h.score} ${h.won?'승':'패'} / ${h.place||'—'})`),
         el('div',{class:'small muted'}, '사유: ' + (h.reasons||[]).join(', '))
       );
