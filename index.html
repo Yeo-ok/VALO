@@ -74,7 +74,7 @@
     <div class="row">
       <div class="row" style="gap:10px">
         <div class="chip"><strong>VALORANT</strong> 내전 전적 시스템</div>
-        <div class="chip" id="versionChip">v0.7.3</div>
+        <div class="chip" id="versionChip">v0.7.4</div>
         <span class="muted small">Firestore 실시간 • 단일 파일</span>
       </div>
       <div class="right"></div>
@@ -433,8 +433,33 @@
     {name:'다이아몬드', base:2300},
     {name:'초월자', base:2500},   // Ascendant
     {name:'불멸', base:2700},     // Immortal
-    {name:'레디언트', base:3000}  // Radiant (단일 단계)
+    {name:'레디언트', base:3000}  // Radiant
   ];
+
+  // 디비전 보정: 1<2<3 (3 상위)
+  function divOffset(div){
+    if(div===3) return 120;
+    if(div===2) return 60;
+    return 0; // 1
+  }
+  // 외부 티어 문자열 → 시드 MMR
+  function normalizeTierName(t){
+    if(!t) return '';
+    return t.replace(/\s+/g,'').replace(/에센트|에이센트|애센트/,'초월자'); // 혹시 섞인 표기 보정
+  }
+  function parseDivisionFromDetail(detail){
+    const m = (detail||'').match(/([1-3])/);
+    const d = m ? parseInt(m[1],10) : 1;
+    return (d>=1&&d<=3)?d:1;
+  }
+  function seedMMRFromExternalTier(tierName, rankDetail){
+    const name = normalizeTierName(tierName||'');
+    const tier = tiers.find(x=>name.includes(x.name));
+    if(!tier){ return baseMMR; }
+    if(tier.name==='레디언트') return tier.base; // 단일
+    const div = parseDivisionFromDetail(rankDetail||'');
+    return tier.base + divOffset(div);
+  }
 
   // ✅ 디비전 숫자: 1 < 2 < 3 (3이 상위)
   function mmrToTier(mmr){
@@ -443,19 +468,27 @@
     if(t==='레디언트') return '레디언트';
     const base=tiers.find(x=>x.name===t).base;
     const delta=Math.max(0, mmr-base);
-    // 0~59: 1, 60~119: 2, 120+: 3  (3이 상위)
     const div = (delta>=120)?3 : (delta>=60)?2 : 1;
     return `${t} ${div}`;
   }
 
-  async function ensurePlayer(tag){
+  // ★ 변경: 최초 등록 시 외부 티어로 시드
+  async function ensurePlayer(tag, seedTierName, seedRankDetail){
     const ref = doc(db,'players', tag);
     const snap = await getDoc(ref);
     if(!snap.exists()){
-      await setDoc(ref,{tag, mmr:baseMMR, tier:mmrToTier(baseMMR), total:0, wins:0, losses:0, createdAt:serverTimestamp(), updatedAt:serverTimestamp()});
+      const seed = seedMMRFromExternalTier(seedTierName, seedRankDetail);
+      await setDoc(ref,{
+        tag,
+        mmr: seed,
+        tier: mmrToTier(seed),
+        total:0, wins:0, losses:0,
+        createdAt:serverTimestamp(), updatedAt:serverTimestamp()
+      });
     }
     return ref;
   }
+
   async function getRecent10(tag){
     const ref = collection(db,'players', tag, 'mmr_history');
     const qd = query(ref, orderBy('ts','desc'), limit(10));
@@ -469,6 +502,7 @@
     });
     return {wins,mvps,winstreak,losestreak};
   }
+
   function computeMMRDelta(ctx){
     let delta = ctx.won?25:-25;
     const reasons=[ctx.won?'+25 (승리)':'-25 (패배)'];
@@ -512,10 +546,12 @@
     if(r.winstreak>=4 && r.mvps>=3){ delta+=10; reasons.push('+10 (연승4+ & MVP≥3)'); }
     return {delta:Math.round(delta), reasons};
   }
+
+  // ★ 여기서 ensurePlayer에 외부 티어 정보 전달
   async function updateAggregatesForMatch(matchId, matchDate, score, teamA, teamB, aWon, mapName){
     const all=[...teamA,...teamB];
     for(const p of all){
-      const ref = await ensurePlayer(p.tag);
+      const ref = await ensurePlayer(p.tag, p.tier, p.rankDetail);
       const snap = await getDoc(ref);
       const cur = snap.data()||{};
       const isA = teamA.some(x=>x.tag===p.tag);
@@ -771,7 +807,7 @@
   async function loadTierBoard(){
     const snap=await getDocs(collection(db,'players'));
     const arr=[];
-    snap.forEach(d=>{ const x=d.data(); arr.push({tag:x.tag, mmr:x.mmr||baseMMR, tier:x.tier||mmrToTier(x.mmr||baseMMR), total:x.total||0, wins:x.wins||0, losses:x.losses||0}); });
+    snap.forEach(d=>{ const x=d.data(); arr.push({tag:x.tag, mmr:x.mmr||baseMMR, tier:mmrToTier(x.mmr||baseMMR), total:x.total||0, wins:x.wins||0, losses:x.losses||0}); });
     arr.sort((a,b)=>b.mmr-a.mmr);
     const tb=$('#tierTable tbody'); tb.innerHTML='';
     arr.forEach((p,idx)=>{
