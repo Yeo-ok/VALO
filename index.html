@@ -74,7 +74,7 @@
     <div class="row">
       <div class="row" style="gap:10px">
         <div class="chip"><strong>VALORANT</strong> 내전 전적 시스템</div>
-        <div class="chip" id="versionChip">v0.7.1</div>
+        <div class="chip" id="versionChip">v0.7.3</div>
         <span class="muted small">Firestore 실시간 • 단일 파일</span>
       </div>
       <div class="right"></div>
@@ -114,7 +114,7 @@
       <div class="grid">
         <div>
           <label>내전 정보 입력칸 (원문 붙여넣기)</label>
-          <textarea id="rawPaste" placeholder="네온~브림스톤 5명 + ‘승리적군/승리아군/패배적군/패배아군’ 헤더 포함 텍스트를 그대로 붙여넣으세요."></textarea>
+          <textarea id="rawPaste" placeholder="네온~브림스톤 5명 + ‘승리/패배 + (적군/아군)’ 헤더 포함 텍스트를 그대로 붙여넣으세요."></textarea>
         </div>
         <div class="row">
           <button id="btnParse" class="btn">원문 파싱</button>
@@ -302,12 +302,11 @@
       .join('\n');
   }
 
-  // 팀 블록 분리 (★ 수정: 승리/패배 모두 인식)
+  // 팀 블록 분리 (승리/패배 헤더 모두 인식)
   function splitTeamBlocks(raw){
     const cleaned = cleanup(raw);
-    const parts = cleaned.split(/\n\s*(승리|패배)?\s*(적군|아군)[^\n]*\n/); // ← here
+    const parts = cleaned.split(/\n\s*(승리|패배)?\s*(적군|아군)[^\n]*\n/);
     if(parts.length===1) return [parts[0], ''];
-    // split 결과는 [앞팀, 캡처1, 캡처2, 뒷팀] 형태가 될 수 있으므로, 마지막을 뒤팀으로 사용
     const last = parts[parts.length-1];
     const first = parts.slice(0, parts.length-3).join('\n') || parts[0];
     return [first.trim(), last.trim()];
@@ -370,9 +369,8 @@
     if(A.length<5) A = parseCompactBlock(partA);
     if(B.length<5) B = parseCompactBlock(partB);
 
-    // ★ 수정: 승/패 헤더 모두 반영해서 승패 결정
+    // 승/패 헤더 해석: '승리'면 B팀 승, '패배'면 B팀 패(=A팀 승). 없으면 A팀 승으로 가정
     const header = raw.match(/(승리|패배)\s*(적군|아군)/);
-    // 헤더가 있으면: '승리'면 B팀 승, '패배'면 B팀 패(=A팀 승). 헤더 없으면 A팀 승으로 가정
     const aWon = header ? (header[1] === '패배') : true;
 
     return {A,B,aWon};
@@ -425,17 +423,31 @@
 
   /* ----------------- Tier / MMR ----------------- */
   const baseMMR=2000;
+  // 티어 기준선 (하위 -> 상위)
   const tiers=[
-    {name:'아이언', base:1200},{name:'브론즈', base:1500},{name:'실버', base:1800},{name:'골드', base:2000},
-    {name:'플래티넘', base:2150},{name:'다이아몬드', base:2300},{name:'에센트', base:2500},{name:'이모탈', base:2700},{name:'레디언트', base:3000},
+    {name:'아이언', base:1200},
+    {name:'브론즈', base:1500},
+    {name:'실버', base:1800},
+    {name:'골드', base:2000},
+    {name:'플래티넘', base:2150},
+    {name:'다이아몬드', base:2300},
+    {name:'초월자', base:2500},   // Ascendant
+    {name:'불멸', base:2700},     // Immortal
+    {name:'레디언트', base:3000}  // Radiant (단일 단계)
   ];
+
+  // ✅ 디비전 숫자: 1 < 2 < 3 (3이 상위)
   function mmrToTier(mmr){
-    let t=tiers[0].name, div=3;
+    let t=tiers[0].name;
     for(const x of tiers){ if(mmr>=x.base) t=x.name; }
-    const base=tiers.find(x=>x.name===t).base; const delta=Math.max(0,mmr-base);
-    if(t==='레디언트'){div=1;} else div=delta>=120?1: delta>=60?2:3;
+    if(t==='레디언트') return '레디언트';
+    const base=tiers.find(x=>x.name===t).base;
+    const delta=Math.max(0, mmr-base);
+    // 0~59: 1, 60~119: 2, 120+: 3  (3이 상위)
+    const div = (delta>=120)?3 : (delta>=60)?2 : 1;
     return `${t} ${div}`;
   }
+
   async function ensurePlayer(tag){
     const ref = doc(db,'players', tag);
     const snap = await getDoc(ref);
@@ -580,7 +592,7 @@
     const sort=$('#matchSort').value;
     if(sort==='date_desc') arr.sort((a,b)=>(b.matchDate||b.savedAt)-(a.matchDate||a.savedAt));
     if(sort==='date_asc') arr.sort((a,b)=>(a.matchDate||a.savedAt)-(b.matchDate||b.savedAt));
-    if(sort==='map_asc') arr.sort((a,b)=> (a.mapName||'').localeCompare(b.mapName||''));
+    if(sort==='map_asc') arr.sort((a,b)=> (a.mapName||'').localeCompare(b.mapName||'')); 
     filteredMatches=arr; currentPage=1; renderMatchTable();
   }
   $('#matchSort').addEventListener('change',applyMatchFilters);
@@ -643,11 +655,11 @@
     );
     $('#modal').classList.add('show');
   };
-  $('#btnCloseModal').addEventListener('click',()=>$('#modal').classList.remove('show'));
-  $('#modal').addEventListener('click',(e)=>{ if(e.target.id==='modal') $('#modal').classList.remove('show'); });
+  document.getElementById('btnCloseModal').addEventListener('click',()=>document.getElementById('modal').classList.remove('show'));
+  document.getElementById('modal').addEventListener('click',(e)=>{ if(e.target.id==='modal') document.getElementById('modal').classList.remove('show'); });
 
   /* ---------------- Search (맵/요원/같은팀/상대팀 표) ---------------- */
-  $('#btnSearch').addEventListener('click',()=>doSearch($('#searchQuery').value.trim()));
+  document.getElementById('btnSearch').addEventListener('click',()=>doSearch(document.getElementById('searchQuery').value.trim()));
 
   function safeAppendCard(parent, title, table){
     const card=el('div',{class:'card'}); card.append(el('b',{},title)); card.append(table); parent.append(card);
@@ -798,6 +810,7 @@
 
   // 초기 로드
   loadTierBoard();
+  loadMMRHistory();
 </script>
 
 <!-- 모달 Esc 닫기 -->
