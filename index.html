@@ -75,7 +75,7 @@
     <div class="row">
       <div class="row" style="gap:10px">
         <div class="chip"><strong>VALORANT</strong> 내전 전적 시스템</div>
-        <div class="chip" id="versionChip">v0.3</div>
+        <div class="chip" id="versionChip">v0.4</div>
         <span class="muted small">Firestore 실시간 • 단일 파일</span>
       </div>
       <div class="right"></div>
@@ -90,14 +90,17 @@
 </header>
 
 <main class="wrap">
-  <!-- 내전 정보 입력 (간소화) -->
+  <!-- 내전 정보 입력 -->
   <section id="tab-input" class="panel">
     <h2>내전 정보 입력</h2>
     <div class="card">
       <div class="grid g3">
         <div>
-          <label>맵 이름</label>
-          <input id="mapName" type="text" placeholder="예: Ascent / Haven / Bind / OVP 등" />
+          <label>맵 선택</label>
+          <div class="row" style="gap:8px">
+            <select id="mapSelect"></select>
+            <button id="btnAddMap" class="btn">새 맵 추가</button>
+          </div>
         </div>
         <div>
           <label>최종 스코어</label>
@@ -112,7 +115,7 @@
       <div class="grid">
         <div>
           <label>내전 정보 입력칸 (원문 붙여넣기)</label>
-          <textarea id="rawPaste" placeholder="여기에 전체를 붙여넣으세요.&#10;보낸 이미지의 텍스트(네온~브림스톤, 승리적군 헤더 포함) 그대로 붙여넣어도 됩니다."></textarea>
+          <textarea id="rawPaste" placeholder="여기에 전체를 붙여넣으세요.&#10;보낸 이미지의 텍스트(네온~브림스톤, 승리적군/승리아군 헤더 포함) 그대로 붙여넣으면 됩니다."></textarea>
         </div>
         <div class="row">
           <button id="btnParse" class="btn">원문 파싱</button>
@@ -264,6 +267,28 @@
   const fmtDate=(d)=>{if(!(d instanceof Date)) d=new Date(d); const y=d.getFullYear(),m=('0'+(d.getMonth()+1)).slice(-2),day=('0'+d.getDate()).slice(-2); return `${y}-${m}-${day}`;};
   const parseDateInput=()=>{ const v=$('#matchDate').value; if(!v) return new Date(); return new Date(v+'T12:00:00'); };
 
+  /* ---------------- Map Select ---------------- */
+  const defaultMaps=[
+    '어센트','바인드','브리즈','아이스박스','로터스','코로드','선셋','프랙처','헤이븐','스플릿','어비스'
+  ];
+  const mapSelect=$('#mapSelect');
+  function renderMapOptions(){
+    mapSelect.innerHTML='';
+    defaultMaps.forEach(m=> mapSelect.append(el('option',{value:m},m)));
+    // 첫 로드 기본값
+    if(!mapSelect.value && defaultMaps.length) mapSelect.value=defaultMaps[0];
+  }
+  renderMapOptions();
+
+  $('#btnAddMap').addEventListener('click',()=>{
+    const name=prompt('추가할 맵 이름을 입력하세요.');
+    if(!name) return;
+    if(!defaultMaps.includes(name)) defaultMaps.push(name);
+    renderMapOptions();
+    mapSelect.value=name;
+    toast(`"${name}" 맵이 추가되었습니다.`);
+  });
+
   /* ---------------- Tabs ---------------- */
   const switchTab=(name)=>{
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
@@ -289,7 +314,6 @@
 
   /* ---------------- Parser (강화판) ---------------- */
 
-  // 표 헤더/잡다한 라인 제거
   function cleanup(text){
     return text
       .replace(/\r/g,'')
@@ -300,29 +324,27 @@
       .join('\n');
   }
 
-  // 팀 블록 분리: "승리적군/승리아군" 헤더 기준
   function splitTeamBlocks(raw){
     const cleaned = cleanup(raw);
-    const parts = cleaned.split(/\n\s*승리[^\n]*\n/); // 승리아군/승리적군
+    const parts = cleaned.split(/\n\s*승리[^\n]*\n/);
     if(parts.length===1) return [parts[0], ''];
     return [parts[0], parts[1]];
   }
 
-  // 신 포맷(간략) 보조 파서 (혹시 모를 입력 대응)
   function parseCompactBlock(text){
     const lines=text.split('\n').map(s=>s.trim()).filter(Boolean);
     const out=[]; let i=0;
     while(i<lines.length && out.length<5){
       const agent=lines[i++]||'';
       const tag=lines[i++]||'';
-      const rd=lines[i++]||''; // 세부티어/랭크 or 생략
+      const rd=lines[i++]||'';
       const tier=lines[i++]||'';
       if(lines[i]==='-') i++;
       const look=lines[i]||'';
       const KDA_RE=/^\d+\s*\/\s*\d+\s*\/\s*\d+$/;
       const place = KDA_RE.test(look)?'—':(lines[i++]||'—');
       const kdaLine=lines[i++]||'0 / 0 / 0';
-      if(/^\d+(\.\d+)?\s*:\s*\d+$/i.test(lines[i]||'')) i++; // 비율
+      if(/^\d+(\.\d+)?\s*:\s*\d+$/i.test(lines[i]||'')) i++;
       const acs=parseFloat(lines[i++]||'0')||0;
       const m=(kdaLine.match(/(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)/)||[]);
       out.push({agent, tag, rankDetail:rd, tier, place, k:+(m[1]||0), d:+(m[2]||0), a:+(m[3]||0), acs,
@@ -331,11 +353,8 @@
     return out;
   }
 
-  // 구 포맷(티어 풀네임 + ADR/DDΔ/HS%/FK/FD/MK) 파서
   function parseLegacyTailBlock(text){
     const t = cleanup(text);
-
-    // 다음 플레이어 시작: "요원" 줄 다음에 "태그(#)"가 오는 패턴
     const blocks = t
       .split(/\n(?=[가-힣A-Za-z].*\n.*#)/g)
       .map(s=>s.trim())
@@ -354,23 +373,18 @@
       const tier = ls[idx++] || '언랭크';
       if(ls[idx]==='-') idx++;
 
-      // 순위/라벨이 올 수도 있고, 바로 KDA가 올 수도 있음
       const KDA_RE=/^\d+\s*\/\s*\d+\s*\/\s*\d+$/;
       let place='—';
       if(ls[idx] && !KDA_RE.test(ls[idx])) place = ls[idx++];
 
-      // K/D/A
       const kdaLine = ls[idx++] || '0 / 0 / 0';
       const km = kdaLine.match(/(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)/) || [];
       const k = +km[1]||0, d = +km[2]||0, a = +km[3]||0;
 
-      // 비율(optional)
       if(/^\d+(\.\d+)?\s*:\s*\d+$/i.test(ls[idx]||'')) idx++;
 
-      // ACS
       const acs = parseFloat(ls[idx++]||'0')||0;
 
-      // 마지막 라인: ADR  DDΔ  HS%  FK  FD  MK
       const tail = (ls[idx++]||'').replace(/\t+/g,' ').replace(/\s+/g,' ').trim();
       const parts = tail.split(' ');
       const adr = parseFloat(parts[0]||'0')||0;
@@ -387,19 +401,12 @@
 
   function parseRaw(raw){
     const [partA, partB] = splitTeamBlocks(raw);
-
-    // 1차: 구 포맷 강력 파서
     let A = parseLegacyTailBlock(partA);
     let B = parseLegacyTailBlock(partB);
-
-    // 2차: 간략 포맷 백업
     if(A.length<5) A = parseCompactBlock(partA);
     if(B.length<5) B = parseCompactBlock(partB);
-
-    // 팀 승패 추정: "승리xxx" 헤더가 있으면 뒤쪽(B)이 승
     const marker = /승리\s*(적군|아군)/.test(raw) ? 'hasHeader' : 'none';
     const aWon = marker==='hasHeader' ? false : true;
-
     return {A,B,aWon};
   }
 
@@ -578,9 +585,9 @@
   }
 
   $('#btnSaveMatch').addEventListener('click', async ()=>{
-    const mapName = $('#mapName').value.trim();
+    const mapName = $('#mapSelect').value?.trim();
     const score = $('#finalScore').value.trim();
-    if(!mapName || !score){ toast('맵 이름과 스코어를 입력하세요.'); return; }
+    if(!mapName || !score){ toast('맵과 스코어를 입력/선택하세요.'); return; }
     if(!lastParsed || lastParsed.A.length!==5 || lastParsed.B.length!==5){
       toast('먼저 "원문 파싱"으로 10명을 인식해주세요.'); return;
     }
@@ -733,15 +740,20 @@
     for(const m of matches){
       total++; const won = (m.aWon && m.side==='A') || (!m.aWon && m.side==='B'); if(won) wins++; else losses++;
       const p=m.self; K+=p.k; D+=p.d; A+=p.a; sumACS+=p.acs; sumADR+=p.adr||0; sumDDD+=p.ddd||0; sumHS+=p.hs||0; FK+=p.fk||0; FD+=p.fd||0; MK+=p.mk||0;
+
       mapStats[m.mapName]=mapStats[m.mapName]||{w:0,l:0}; if(won) mapStats[m.mapName].w++; else mapStats[m.mapName].l++;
       agentStats[p.agent]=agentStats[p.agent]||{w:0,l:0}; if(won) agentStats[p.agent].w++; else agentStats[p.agent].l++;
+
       const mates=(m.side==='A'?m.teamA:m.teamB).filter(x=>x.tag!==tag);
       mates.forEach(x=>{ teamMateRates[x.tag]=teamMateRates[x.tag]||{w:0,l:0}; if(won) teamMateRates[x.tag].w++; else teamMateRates[x.tag].l++;});
+
       const opps=(m.side==='A'?m.teamB:m.teamA);
       opps.forEach(x=>{ vsRates[x.tag]=vsRates[x.tag]||{w:0,l:0}; if(won) vsRates[x.tag].l++; else vsRates[x.tag].w++;});
     }
-    const avg=(x)=> total? (x/total):0; const pct=(w,l)=> (w+l? (w/(w+l)*100):0);
+    const pct=(w,l)=> (w+l? (w/(w+l)*100):0);
+    const avg=(x)=> total? (x/total):0;
 
+    /* ----- 상단 요약 ----- */
     const hdr=el('div',{class:'card'});
     hdr.append(
       el('div',{class:'row'},
@@ -764,30 +776,42 @@
     );
     box.append(hdr);
 
+    /* ----- 맵별 승/패/승률 ----- */
     const mapCard=el('div',{class:'card'}); mapCard.append(el('b',{},'맵별 성적'));
     const mapTable=el('table',{class:'list table-tight'}); const tb1=el('tbody',{});
     mapTable.append(el('thead',{}, el('tr',{}, el('th',{},'맵'), el('th',{},'승'), el('th',{},'패'), el('th',{},'승률'))));
-    Object.entries(mapStats).sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l)).forEach(([m,st])=>tb1.append(el('tr',{}, el('td',{},m), el('td',{},st.w), el('td',{},st.l), el('td',{}, pct(st.w,st.l).toFixed(1)+'%'))));
+    Object.entries(mapStats)
+      .sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l))
+      .forEach(([m,st])=>tb1.append(el('tr',{}, el('td',{},m), el('td',{},st.w), el('td',{},st.l), el('td',{}, pct(st.w,st.l).toFixed(1)+'%'))));
     mapTable.append(tb1); mapCard.append(mapTable); box.append(mapCard);
 
+    /* ----- 요원별 승/패/승률 ----- */
     const agCard=el('div',{class:'card'}); agCard.append(el('b',{},'요원별 성적'));
     const agTable=el('table',{class:'list table-tight'}); const tb2=el('tbody',{});
     agTable.append(el('thead',{}, el('tr',{}, el('th',{},'요원'), el('th',{},'승'), el('th',{},'패'), el('th',{},'승률'))));
-    Object.entries(agentStats).sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l)).forEach(([ag,st])=>tb2.append(el('tr',{}, el('td',{},agentCell(ag)), el('td',{},st.w), el('td',{},st.l), el('td',{}, pct(st.w,st.l).toFixed(1)+'%'))));
+    Object.entries(agentStats)
+      .sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l))
+      .forEach(([ag,st])=>tb2.append(el('tr',{}, el('td',{},agentCell(ag)), el('td',{},st.w), el('td',{},st.l), el('td',{}, pct(st.w,st.l).toFixed(1)+'%'))));
     agTable.append(tb2); agCard.append(agTable); box.append(agCard);
 
-    const mate=el('div',{class:'card'}); mate.append(el('b',{},'같은 팀 승률'));
+    /* ----- 같은 팀일 때의 유저별 승/패/승률 ----- */
+    const mate=el('div',{class:'card'}); mate.append(el('b',{},'같은 팀일 때 (유저별 승/패/승률)'));
     const mt=el('table',{class:'list table-tight'}); const tb3=el('tbody',{});
-    mt.append(el('thead',{}, el('tr',{}, el('th',{},'플레이어'), el('th',{},'같이한 판수'), el('th',{},'승률'))));
-    Object.entries(teamMateRates).sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l)).forEach(([tg,st])=>tb3.append(el('tr',{}, el('td',{},tg), el('td',{},st.w+st.l), el('td',{}, pct(st.w,st.l).toFixed(1)+'%'))));
+    mt.append(el('thead',{}, el('tr',{}, el('th',{},'플레이어'), el('th',{},'승'), el('th',{},'패'), el('th',{},'승률'))));
+    Object.entries(teamMateRates)
+      .sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l))
+      .forEach(([tg,st])=>tb3.append(el('tr',{}, el('td',{},tg), el('td',{},st.w), el('td',{},st.l), el('td',{}, pct(st.w,st.l).toFixed(1)+'%'))));
     mt.append(tb3); mate.append(mt); box.append(mate);
 
-    const vr=el('div',{class:'card'}); vr.append(el('b',{},'상대팀 승률'));
+    /* ----- (참고) 상대팀 기록(상대 기준 승률) ----- */
+    const vr=el('div',{class:'card'}); vr.append(el('b',{},'상대팀 (상대 기준 승률 참고용)'));
     const vt=el('table',{class:'list table-tight'}); const tb4=el('tbody',{});
-    vt.append(el('thead',{}, el('tr',{}, el('th',{},'플레이어'), el('th',{},'맞붙은 판수'), el('th',{},'상대팀 승률(상대 기준)'))));
-    Object.entries(vsRates).sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l)).forEach(([tg,st])=>{
-      const total=st.w+st.l; tb4.append(el('tr',{}, el('td',{},tg), el('td',{},total), el('td',{}, pct(st.w,st.l).toFixed(1)+'%')));
-    });
+    vt.append(el('thead',{}, el('tr',{}, el('th',{},'플레이어'), el('th',{},'맞붙은 판수'), el('th',{},'상대팀 승률'))));
+    Object.entries(vsRates)
+      .sort((a,b)=> (b[1].w+b[1].l)-(a[1].w+a[1].l))
+      .forEach(([tg,st])=>{
+        const total=st.w+st.l; tb4.append(el('tr',{}, el('td',{},tg), el('td',{},total), el('td',{}, pct(st.w,st.l).toFixed(1)+'%')));
+      });
     vt.append(tb4); vr.append(vt); box.append(vr);
   }
 
@@ -813,7 +837,6 @@
       const hs=await getDocs(qd);
       hs.forEach(h=>all.push({tag:p.id, ...h.data()}));
     }
-    // 최신순 정렬 (ts 또는 date 필드 기준)
     all.sort((a,b)=>{
       const at = a.ts?.toDate?.() || a.date?.toDate?.() || 0;
       const bt = b.ts?.toDate?.() || b.date?.toDate?.() || 0;
